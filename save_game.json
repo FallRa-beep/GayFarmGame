@@ -1,0 +1,164 @@
+{
+    "player": {
+        "x": 928,
+        "y": 224,
+        "width": 64,
+        "height": 64,
+        "speed": 5,
+        "state": "harvesting",
+        "action_start_time": 84985,
+        "target_x": 928,
+        "target_y": 224,
+        "language": "en"
+    },
+    "house": {
+        "x": 896,
+        "y": 0,
+        "width": 128,
+        "height": 128,
+        "color": [
+            0,
+            0,
+            0
+        ],
+        "obj_type": "house",
+        "movable": false
+    },
+    "objects": [
+        {
+            "x": 864,
+            "y": 224,
+            "width": 64,
+            "height": 64,
+            "color": [
+                165,
+                42,
+                42
+            ],
+            "obj_type": "bed",
+            "movable": true,
+            "is_planted": false,
+            "plant_type": null,
+            "is_watered": false,
+            "is_sprouted": false,
+            "last_watered_time": 0,
+            "ripening_start_time": null,
+            "is_ripe": false,
+            "total_ripening_time": 0,
+            "first_watering_time": null,
+            "watering_start_time": null
+        },
+        {
+            "x": 928,
+            "y": 224,
+            "width": 64,
+            "height": 64,
+            "color": [
+                165,
+                42,
+                42
+            ],
+            "obj_type": "bed",
+            "movable": true,
+            "is_planted": false,
+            "plant_type": null,
+            "is_watered": false,
+            "is_sprouted": false,
+            "last_watered_time": 0,
+            "ripening_start_time": null,
+            "is_ripe": false,
+            "total_ripening_time": 0,
+            "first_watering_time": null,
+            "watering_start_time": null
+        },
+        {
+            "x": 992,
+            "y": 224,
+            "width": 64,
+            "height": 64,
+            "color": [
+                165,
+                42,
+                42
+            ],
+            "obj_type": "bed",
+            "movable": true,
+            "is_planted": true,
+            "plant_type": "corn",
+            "is_watered": false,
+            "is_sprouted": true,
+            "last_watered_time": 79367,
+            "ripening_start_time": null,
+            "is_ripe": false,
+            "total_ripening_time": 12009,
+            "first_watering_time": 70283,
+            "watering_start_time": null
+        },
+        {
+            "x": 896,
+            "y": 0,
+            "width": 128,
+            "height": 128,
+            "color": [
+                0,
+                0,
+                0
+            ],
+            "obj_type": "house",
+            "movable": false
+        },
+        {
+            "x": 64,
+            "y": 0,
+            "width": 64,
+            "height": 64,
+            "color": [
+                139,
+                69,
+                19
+            ],
+            "obj_type": "market_stall",
+            "movable": true
+        },
+        {
+            "x": 1056,
+            "y": 96,
+            "width": 64,
+            "height": 64,
+            "color": [
+                160,
+                82,
+                45
+            ],
+            "obj_type": "mill",
+            "movable": true,
+            "is_processing": true,
+            "process_start_time": 82360,
+            "harvest_stored": 2
+        },
+        {
+            "x": 1120,
+            "y": 96,
+            "width": 64,
+            "height": 64,
+            "color": [
+                128,
+                0,
+                128
+            ],
+            "obj_type": "canning_cellar",
+            "movable": true,
+            "is_processing": true,
+            "process_start_time": 28781,
+            "harvest_stored": 4,
+            "products_stored": 0
+        }
+    ],
+    "camera_x": 0,
+    "harvest_count": 7,
+    "level": 2,
+    "coins": 8,
+    "harvest": 16,
+    "products": 8,
+    "language": "en"
+}
