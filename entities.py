@@ -12,14 +12,22 @@ class MapObject:
         self.color = color
         self.obj_type = obj_type
         self.movable = False  # По умолчанию объект нельзя перемещать
+        self.image = None
         if self.obj_type == "house":
             try:
                 self.image = images.GAME_IMAGES["house"]
             except KeyError:
                 self.image = pygame.Surface((self.width, self.height))
                 self.image.fill(BLACK)
-        else:
-            self.image = None
+
+    def reload_images(self):
+        """Перезагружает изображения объекта."""
+        if self.obj_type == "house":
+            try:
+                self.image = images.GAME_IMAGES["house"]
+            except KeyError:
+                self.image = pygame.Surface((self.width, self.height))
+                self.image.fill(BLACK)
 
     def draw(self, screen, camera_x):
         if self.image and self.obj_type == "house":
@@ -44,12 +52,19 @@ class MarketStall(MapObject):
             self.image = pygame.Surface((self.width, self.height))
             self.image.fill((139, 69, 19))
 
-    def draw(self, screen, camera_x):
+    def reload_images(self):
+        """Перезагружает изображение ларька."""
+        try:
+            self.image = images.GAME_IMAGES["market_stall"]
+        except KeyError:
+            print("Ошибка: изображение ларька не найдено")
+            self.image = pygame.Surface((self.width, self.height))
+            self.image.fill((139, 69, 19))
 
+    def draw(self, screen, camera_x):
         screen.blit(self.image, (self.x - camera_x, self.y))
 
     def to_dict(self):
-
         return {
             "x": self.x, "y": self.y, "width": self.width, "height": self.height,
             "color": self.color, "obj_type": "market_stall", "movable": self.movable
@@ -70,6 +85,21 @@ class Bed(MapObject):
         self.first_watering_time = None
         self.watering_start_time = None
         self.watering_duration = 2000
+        try:
+            self.image_dry = images.GAME_IMAGES["bed_dry"]
+            self.image_wet = images.GAME_IMAGES["bed_wet"]
+            self.image_ripe = images.GAME_IMAGES["bed_ripe"]
+        except KeyError as e:
+            print(f"Ошибка: изображение грядки не найдено - {e}")
+            self.image_dry = pygame.Surface((self.width, self.height))
+            self.image_dry.fill(BROWN)
+            self.image_wet = pygame.Surface((self.width, self.height))
+            self.image_wet.fill((0, 0, 255))
+            self.image_ripe = pygame.Surface((self.width, self.height))
+            self.image_ripe.fill(YELLOW)
+
+    def reload_images(self):
+        """Перезагружает изображения грядки."""
         try:
             self.image_dry = images.GAME_IMAGES["bed_dry"]
             self.image_wet = images.GAME_IMAGES["bed_wet"]
@@ -122,7 +152,6 @@ class Bed(MapObject):
         if not self.is_watered and self.is_planted and self.watering_start_time is None:
             self.watering_start_time = pygame.time.get_ticks()
 
-
     def update(self):
         current_time = pygame.time.get_ticks()
         if self.is_planted and self.plant_type:
@@ -137,12 +166,10 @@ class Bed(MapObject):
                 ripening_time = 300000
 
             if self.watering_start_time is not None:
-
                 if current_time - self.watering_start_time >= self.watering_duration:
                     self.is_watered = True
                     self.last_watered_time = current_time
                     self.watering_start_time = None
-
                     if self.first_watering_time is None:
                         self.first_watering_time = current_time
                     if self.ripening_start_time is None:
@@ -208,6 +235,15 @@ class Mill(MapObject):
             self.image = pygame.Surface((self.width, self.height))
             self.image.fill((160, 82, 45))
 
+    def reload_images(self):
+        """Перезагружает изображение мельницы."""
+        try:
+            self.image = images.GAME_IMAGES["mill"]
+        except KeyError:
+            print("Ошибка: изображение мельницы не найдено")
+            self.image = pygame.Surface((self.width, self.height))
+            self.image.fill((160, 82, 45))
+
     def start_processing(self, harvest):
         if not self.is_processing and harvest >= BUILDING_CONFIG["mill"]["consume"].get("harvest", 0):
             self.is_processing = True
@@ -257,6 +293,15 @@ class CanningCellar(MapObject):
             self.image = pygame.Surface((self.width, self.height))
             self.image.fill((128, 0, 128))
 
+    def reload_images(self):
+        """Перезагружает изображение погреба."""
+        try:
+            self.image = images.GAME_IMAGES.get("canning_cellar", images.GAME_IMAGES["mill"])
+        except KeyError:
+            print("Ошибка: изображение Canning Cellar не найдено")
+            self.image = pygame.Surface((self.width, self.height))
+            self.image.fill((128, 0, 128))
+
     def start_processing(self, harvest, products):
         if not self.is_processing and harvest >= BUILDING_CONFIG["canning_cellar"]["consume"].get("harvest", 0) and products >= 0:
             self.is_processing = True
@@ -293,7 +338,7 @@ class CanningCellar(MapObject):
             "products_stored": self.products_stored
         }
 
-# Класс Player остаётся без изменений, так как movable к нему не относится
+# Класс Player
 class Player:
     def __init__(self, x, y, width, height, speed, language="en"):
         self.x = x
@@ -307,7 +352,6 @@ class Player:
         self.target_y = y
         self.language = language
         try:
-
             self.images = {
                 "idle": pygame.transform.scale(images.GAME_IMAGES["player_idle"], (width, height)),
                 "walking": pygame.transform.scale(images.GAME_IMAGES["player_walking"], (width, height)),
@@ -315,9 +359,7 @@ class Player:
                 "harvesting": pygame.transform.scale(images.GAME_IMAGES["player_harvesting"], (width, height)),
                 "processing": pygame.transform.scale(images.GAME_IMAGES["player_processing"], (width, height))
             }
-
         except KeyError as e:
-
             self.images = {
                 "idle": pygame.Surface((width, height), pygame.SRCALPHA),
                 "walking": pygame.Surface((width, height), pygame.SRCALPHA),
@@ -328,12 +370,32 @@ class Player:
             for state in self.images:
                 self.images[state].fill((255, 0, 0, 128))
 
+    def reload_images(self):
+        """Перезагружает изображения игрока."""
+        try:
+            self.images = {
+                "idle": pygame.transform.scale(images.GAME_IMAGES["player_idle"], (self.width, self.height)),
+                "walking": pygame.transform.scale(images.GAME_IMAGES["player_walking"], (self.width, self.height)),
+                "watering": pygame.transform.scale(images.GAME_IMAGES["player_watering"], (self.width, self.height)),
+                "harvesting": pygame.transform.scale(images.GAME_IMAGES["player_harvesting"], (self.width, self.height)),
+                "processing": pygame.transform.scale(images.GAME_IMAGES["player_processing"], (self.width, self.height))
+            }
+        except KeyError as e:
+            self.images = {
+                "idle": pygame.Surface((self.width, self.height), pygame.SRCALPHA),
+                "walking": pygame.Surface((self.width, self.height), pygame.SRCALPHA),
+                "watering": pygame.Surface((self.width, self.height), pygame.SRCALPHA),
+                "harvesting": pygame.Surface((self.width, self.height), pygame.SRCALPHA),
+                "processing": pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+            }
+            for state in self.images:
+                self.images[state].fill((255, 0, 0, 128))
+
     def start_action(self, action):
         self.state = action
         self.action_start_time = pygame.time.get_ticks()
 
     def move(self):
-
         if self.state == "walking":
             dx = self.target_x - self.x
             dy = self.target_y - self.y
@@ -355,17 +417,22 @@ class Player:
 
     def draw(self, screen, camera_x):
         screen_x = self.x - camera_x
-
         if 0 <= screen_x <= screen.get_width() and 0 <= self.y <= screen.get_height():
             try:
                 image = self.images[self.state]
                 screen.blit(image, (screen_x, self.y))
             except KeyError as e:
-
                 default_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
                 default_surface.fill((255, 0, 0, 128))
                 screen.blit(default_surface, (screen_x, self.y))
 
-
     def __str__(self):
         return f"Player(x={self.x}, y={self.y}, state={self.state})"
+
+    def to_dict(self):
+        """Возвращает словарь с данными игрока для сохранения."""
+        return {
+            "x": self.x, "y": self.y, "width": self.width, "height": self.height,
+            "speed": self.speed, "state": self.state, "action_start_time": self.action_start_time,
+            "target_x": self.target_x, "target_y": self.target_y, "language": self.language
+        }

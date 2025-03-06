@@ -1,21 +1,126 @@
-import pygame
 import json
-from config import MAP_WIDTH, SCREEN_HEIGHT
-from entities import Player, MapObject, Bed, MarketStall, Mill, CanningCellar
-from game_utils import snap_to_grid
+import os
+import time
+import pygame
+from entities import Player, Bed, MarketStall, Mill, CanningCellar, MapObject  # Импортируем классы
 
-OBJECT_TYPE_TO_CLASS = {
-    "bed": Bed,
-    "market_stall": MarketStall,
-    "mill": Mill,
-    "canning_cellar": CanningCellar
-}
+def filter_dict(data, exclude_types=(pygame.Surface, pygame.Rect, pygame.Color)):
+    """Рекурсивно фильтрует словарь, исключая несохраняемые объекты."""
+    if isinstance(data, dict):
+        return {k: filter_dict(v, exclude_types) for k, v in data.items()
+                if not isinstance(v, exclude_types)}
+    elif isinstance(data, list):
+        return [filter_dict(item, exclude_types) for item in data]
+    elif isinstance(data, (int, float, str, bool, type(None))):
+        return data
+    return str(data)  # Преобразуем несохраняемые объекты в строку (для отладки)
 
-def save_game(player, house, objects, camera_x, screen, harvest_count, level, coins, harvest, products, language, game_context):
-    data = {
-        "player": {k: v for k, v in player.__dict__.items() if k != "images"},
-        "house": house.to_dict(),
-        "objects": [obj.to_dict() for obj in objects],
+def list_saves():
+    """Возвращает список сохранений с информацией о файлах и временных метках."""
+    saves_dir = "saves"
+    if not os.path.exists(saves_dir):
+        os.makedirs(saves_dir)
+    save_files = [f for f in os.listdir(saves_dir) if f.endswith(".json")]
+    save_data = []
+    for file_name in save_files:
+        file_path = os.path.join(saves_dir, file_name)
+        timestamp = os.path.getmtime(file_path)
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            save_data.append({"filename": file_name, "timestamp": timestamp, "data": data})
+        except json.JSONDecodeError as e:
+            print(f"Ошибка при декодировании файла {file_name}: {e}. Файл будет пропущен.")
+            continue  # Пропускаем повреждённый файл
+    return sorted(save_data, key=lambda x: x["timestamp"], reverse=True)  # Сортируем по убыванию времени
+
+def load_game(screen, filename=None):
+    """Загружает игру из указанного файла или последнего сохранения, если filename не задан."""
+    saves_dir = "saves"
+    if not os.path.exists(saves_dir):
+        return None
+
+    if filename is None:
+        save_files = list_saves()
+        if not save_files:
+            return None
+        filename = save_files[0]["filename"]  # Берем файл с максимальным timestamp (последнее сохранение)
+
+    file_path = os.path.join(saves_dir, filename)
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            # Восстановление данных
+            player_data = data.get("player", {})
+            house_data = data.get("house", {})
+            objects_data = data.get("objects", [])
+            camera_x = data.get("camera_x", 0)
+            harvest_count = data.get("harvest_count", 0)
+            level = data.get("level", 1)
+            coins = data.get("coins", 10)
+            harvest = data.get("harvest", 0)
+            products = data.get("products", 0)
+            language = data.get("language", "en")
+            map_tiles = data.get("map_tiles", [])
+
+            # Восстановление Player
+            player = Player(player_data.get("x", 0), player_data.get("y", 0), player_data.get("width", 64),
+                           player_data.get("height", 64), player_data.get("speed", 5), language=language)
+            player.__dict__.update(player_data)  # Восстанавливаем остальные атрибуты
+            player.reload_images()  # Перезагружаем изображения
+
+            # Восстановление MapObject (house)
+            house = MapObject(house_data.get("x", 0), house_data.get("y", 0), house_data.get("width", 128),
+                             house_data.get("height", 128), house_data.get("color", (0, 0, 0)), house_data.get("obj_type", "house"))
+            house.__dict__.update(house_data)
+            house.reload_images()
+
+            # Восстановление других объектов
+            objects = []
+            for obj_data in objects_data:
+                obj_type = obj_data.get("obj_type")
+                if obj_type == "bed":
+                    obj = Bed(obj_data.get("x", 0), obj_data.get("y", 0))
+                elif obj_type == "market_stall":
+                    obj = MarketStall(obj_data.get("x", 0), obj_data.get("y", 0))
+                elif obj_type == "mill":
+                    obj = Mill(obj_data.get("x", 0), obj_data.get("y", 0))
+                elif obj_type == "canning_cellar":
+                    obj = CanningCellar(obj_data.get("x", 0), obj_data.get("y", 0))
+                else:
+                    obj = MapObject(obj_data.get("x", 0), obj_data.get("y", 0), obj_data.get("width", 64),
+                                   obj_data.get("height", 64), obj_data.get("color", (0, 0, 0)), obj_type)
+                obj.__dict__.update(obj_data)
+                obj.reload_images()  # Перезагружаем изображения
+                objects.append(obj)
+
+            return player, house, objects, camera_x, harvest_count, level, coins, harvest, products, language, map_tiles
+        except json.JSONDecodeError as e:
+            print(f"Ошибка при загрузке файла {filename}: {e}. Файл повреждён.")
+            return None
+    return None
+
+def save_game(player, house, objects, camera_x, harvest_count, level, coins, harvest, products, language, game_context, filename):
+    """Сохраняет игру в указанный файл."""
+    saves_dir = "saves"
+    if not os.path.exists(saves_dir):
+        os.makedirs(saves_dir)
+
+    file_path = os.path.join(saves_dir, filename)
+    # Фильтруем данные перед сохранением
+    filtered_player = player.to_dict()  # Используем to_dict для игрока
+    filtered_house = house.to_dict()    # Используем to_dict для дома
+    filtered_objects = [obj.to_dict() for obj in objects]  # Используем to_dict для объектов
+    filtered_game_context = {
+        k: filter_dict(v) for k, v in game_context.items()
+        if k not in ["screen", "menu_manager", "target_bed", "target_mill", "target_canning_cellar"]
+    }
+
+    save_data = {
+        "player": filtered_player,
+        "house": filtered_house,
+        "objects": filtered_objects,
         "camera_x": camera_x,
         "harvest_count": harvest_count,
         "level": level,
@@ -23,57 +128,8 @@ def save_game(player, house, objects, camera_x, screen, harvest_count, level, co
         "harvest": harvest,
         "products": products,
         "language": language,
-        "map_tiles": game_context.get("map_tiles", [])  # Берем map_tiles из переданного game_context
+        "map_tiles": filter_dict(game_context["map_tiles"])
     }
-    with open("save_game.json", "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-    print("Game saved successfully")
-
-def load_game(screen):
-    try:
-        with open("save_game.json", "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        print("No save file found, returning default values")
-        return None, None, [], 0, 0, 1, 10, 0, 0, "en", []  # Добавляем пустой список map_tiles
-    except json.JSONDecodeError as e:
-        print(f"Error decoding save_game.json: {e}")
-        return None, None, [], 0, 0, 1, 10, 0, 0, "en", []  # Добавляем пустой список map_tiles
-
-    player_data = data["player"]
-    house_data = data["house"]
-    objects_data = data["objects"]
-    camera_x = data["camera_x"]
-    harvest_count = data["harvest_count"]
-    level = data["level"]
-    coins = data["coins"]
-    harvest = data["harvest"]
-    products = data["products"]
-    language = data["language"]
-    map_tiles = data.get("map_tiles", [])  # Загружаем тайлы, если они есть
-
-    player = Player(player_data["x"], player_data["y"], player_data["width"], player_data["height"],
-                    player_data["speed"], language)
-    player.__dict__.update(player_data)
-
-    house = MapObject(house_data["x"], house_data["y"], house_data["width"], house_data["height"],
-                      house_data["color"], house_data["obj_type"])
-    house.__dict__.update(house_data)  # Включает movable
-
-    objects = []
-    for obj_data in objects_data:
-        obj_type = obj_data["obj_type"]
-        if obj_type in OBJECT_TYPE_TO_CLASS:
-            obj_class = OBJECT_TYPE_TO_CLASS[obj_type]
-            obj = obj_class(obj_data["x"], obj_data["y"], obj_data["width"], obj_data["height"])
-        else:
-            obj = MapObject(obj_data["x"], obj_data["y"], obj_data["width"], obj_data["height"],
-                            obj_data["color"], obj_type)
-        obj.__dict__.update(obj_data)  # Включает movable и другие параметры
-        objects.append(obj)
-
-    for obj in objects:
-        obj.x = max(0, min(obj.x, MAP_WIDTH - obj.width))
-        obj.y = max(0, min(obj.y, SCREEN_HEIGHT - obj.height))
-
-    return player, house, objects, camera_x, harvest_count, level, coins, harvest, products, language, map_tiles
+    save_data["game_context"] = filtered_game_context  # Сохраняем отфильтрованный game_context
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(save_data, f, indent=4, ensure_ascii=False)

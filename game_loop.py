@@ -1,7 +1,6 @@
 import pygame
 import time
-import math
-import random
+import random  # Оставляем только используемые импорты
 from config import MAP_WIDTH, SCREEN_HEIGHT, LEVEL_THRESHOLDS, SEEDS
 from translations import get_text
 from entities import Player, Bed, MapObject, MarketStall, Mill, CanningCellar
@@ -33,7 +32,16 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
         "last_click_time": 0,
         "window_active": True,
         "window_minimized": False,
-        "map_tiles": map_tiles if map_tiles is not None else []  # Используем переданные map_tiles или пустой список
+        "map_tiles": map_tiles if map_tiles is not None else [],
+        "player": player,  # Добавляем данные для сохранения
+        "house": house,
+        "objects": objects,
+        "camera_x": initial_camera_x,
+        "harvest_count": harvest_count,
+        "level": level,
+        "coins": coins,
+        "harvest": harvest,
+        "products": products
     }
 
     if player is None:
@@ -77,6 +85,19 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
                 tile_type = random.choice(["grass_tile_1", "grass_tile_2", "grass_tile_3"])
                 map_tiles.append({"x": x, "y": y, "type": tile_type})
         game_context["map_tiles"] = map_tiles
+
+        # Обновляем game_context для новой игры
+        game_context.update({
+            "player": player,
+            "house": house,
+            "objects": objects,
+            "camera_x": camera_x,
+            "harvest_count": harvest_count,
+            "level": level,
+            "coins": coins,
+            "harvest": harvest,
+            "products": products
+        })
     else:
         camera_x = initial_camera_x
         if objects is None:
@@ -94,47 +115,63 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
         player.x = max(0, min(player.x, MAP_WIDTH - player.width))
         player.y = max(0, min(player.y, SCREEN_HEIGHT - player.height))
 
+        # Обновляем game_context для загруженной игры
+        game_context.update({
+            "player": player,
+            "house": house,
+            "objects": objects,
+            "camera_x": camera_x,
+            "harvest_count": harvest_count,
+            "level": level,
+            "coins": coins,
+            "harvest": harvest,
+            "products": products
+        })
+
     app_mouse_focus = 1
     app_input_focus = 2
     app_active = 4
 
     running = True
-    last_save_time = time.time()
-    auto_save_interval = 600
+    # Убираем автоматическое сохранение
+    # last_save_time = time.time()
+    # auto_save_interval = 600
 
-    def find_nearest_bed_quad(player, condition=None):
-        player_pos = (player.x + player.width // 2, player.y + player.height // 2)
+    def find_nearest_bed_quad(p, condition=None):  # Изменяем имя параметра, чтобы избежать затенения
+        player_pos = (p.x + p.width // 2, p.y + p.height // 2)
         nearest, dist = quad_tree.find_nearest(player_pos, condition)
         return nearest
 
-    def find_nearest_mill_quad(player, condition=None):
-        player_pos = (player.x + player.width // 2, player.y + player.height // 2)
+    def find_nearest_mill_quad(p, condition=None):  # Изменяем имя параметра
+        player_pos = (p.x + p.width // 2, p.y + p.height // 2)
         nearest, dist = quad_tree.find_nearest(player_pos, condition)
         return nearest
 
-    def find_nearest_canning_cellar_quad(player, condition=None):
-        player_pos = (player.x + player.width // 2, player.y + player.height // 2)
+    def find_nearest_canning_cellar_quad(p, condition=None):  # Изменяем имя параметра
+        player_pos = (p.x + p.width // 2, p.y + p.height // 2)
         nearest, dist = quad_tree.find_nearest(player_pos, condition)
         return nearest
 
+    result = None  # Инициализируем result, чтобы избежать ошибки
     while running:
-        current_time = time.time()
-        if current_time - last_save_time >= auto_save_interval:
-            save_game(player, house, objects, camera_x, screen, harvest_count, level, coins, harvest, products, language, game_context)
-            last_save_time = current_time
-            print(get_text("Auto-save completed!", language))
+        # Убираем автоматическое сохранение
+        # current_time = time.time()
+        # if current_time - last_save_time >= auto_save_interval:
+        #     save_game(player, house, objects, camera_x, screen, harvest_count, level, coins, harvest, products, language, game_context)
+        #     last_save_time = current_time
+        #     print(get_text("Auto-save completed!", language))
 
         menu_manager.update(coins, harvest, products, level)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+                result = "exit"
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 if menu_manager.active_menu:
                     menu_manager.close_all()
                 else:
-                    save_game(player, house, objects, camera_x, screen, harvest_count, level, coins, harvest, products, language, game_context)
-                    return "main_menu"
+                    result = "main_menu"
             elif event.type == pygame.ACTIVEEVENT:
                 if event.state & app_active:
                     if event.gain == 0:
@@ -152,13 +189,19 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
                 result = handle_input(player, objects, camera_x, screen_width, MAP_WIDTH, screen_height, game_context, coins,
                                       harvest, harvest_count, level, products, event)
                 if result in ["exit", "main_menu"]:
-                    return result
+                    break
                 elif isinstance(result, dict):
                     if "updated_resources" in result:
                         coins = result["updated_resources"]["coins"]
                         harvest = result["updated_resources"]["harvest"]
                         products = result["updated_resources"]["products"]
                         print(f"Updated resources: coins={coins}, harvest={harvest}, products={products}")
+                        # Обновляем game_context
+                        game_context.update({
+                            "coins": coins,
+                            "harvest": harvest,
+                            "products": products
+                        })
                     if result.get("action") == "build":
                         if objects:
                             new_obj = objects[-1]
@@ -245,7 +288,7 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
 
                 target_bed = find_nearest_bed_quad(
                     player,
-                    lambda b: b.obj_type == "bed" and b.is_planted and not b.is_watered and not b.is_ripe and b.watering_start_time is None
+                    lambda b: b.obj_type == "bed" and b.is_planted and not b.is_watered and b.watering_start_time is None
                 )
                 if not target_bed:
                     target_bed = find_nearest_bed_quad(
@@ -295,7 +338,14 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
             clock.tick(60)
             camera_x = render_game(screen, player, objects, camera_x, screen_width, MAP_WIDTH, coins, harvest, products,
                                    level, game_context)
+            # Обновляем camera_x в game_context
+            game_context["camera_x"] = camera_x
 
         pygame.display.flip()
 
-    return "main_menu"
+        if result in ["exit", "main_menu"]:
+            break
+
+    if result == "main_menu":
+        return result, game_context
+    return result
