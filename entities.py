@@ -45,11 +45,11 @@ class MarketStall(MapObject):
             self.image.fill((139, 69, 19))
 
     def draw(self, screen, camera_x):
-        print(f"Drawing market stall at ({self.x}, {self.y}), camera_x={camera_x}")
+
         screen.blit(self.image, (self.x - camera_x, self.y))
 
     def to_dict(self):
-        print(f"Saving market stall position: x={self.x}, y={self.y}")
+
         return {
             "x": self.x, "y": self.y, "width": self.width, "height": self.height,
             "color": self.color, "obj_type": "market_stall", "movable": self.movable
@@ -121,7 +121,7 @@ class Bed(MapObject):
     def water(self):
         if not self.is_watered and self.is_planted and self.watering_start_time is None:
             self.watering_start_time = pygame.time.get_ticks()
-            print(f"Started watering bed at ({self.x}, {self.y})")
+
 
     def update(self):
         current_time = pygame.time.get_ticks()
@@ -137,12 +137,12 @@ class Bed(MapObject):
                 ripening_time = 300000
 
             if self.watering_start_time is not None:
-                print(f"Updating bed at ({self.x}, {self.y}): watering progress = {(current_time - self.watering_start_time) / self.watering_duration * 100:.1f}%")
+
                 if current_time - self.watering_start_time >= self.watering_duration:
                     self.is_watered = True
                     self.last_watered_time = current_time
                     self.watering_start_time = None
-                    print(f"Finished watering bed at ({self.x}, {self.y})")
+
                     if self.first_watering_time is None:
                         self.first_watering_time = current_time
                     if self.ripening_start_time is None:
@@ -307,7 +307,7 @@ class Player:
         self.target_y = y
         self.language = language
         try:
-            print(f"Attempting to load player images from GAME_IMAGES: {list(images.GAME_IMAGES.keys())}")
+
             self.images = {
                 "idle": pygame.transform.scale(images.GAME_IMAGES["player_idle"], (width, height)),
                 "walking": pygame.transform.scale(images.GAME_IMAGES["player_walking"], (width, height)),
@@ -315,9 +315,9 @@ class Player:
                 "harvesting": pygame.transform.scale(images.GAME_IMAGES["player_harvesting"], (width, height)),
                 "processing": pygame.transform.scale(images.GAME_IMAGES["player_processing"], (width, height))
             }
-            print("Player images loaded successfully")
+
         except KeyError as e:
-            print(f"Error loading player image for state {e}: Using default red surface")
+
             self.images = {
                 "idle": pygame.Surface((width, height), pygame.SRCALPHA),
                 "walking": pygame.Surface((width, height), pygame.SRCALPHA),
@@ -333,7 +333,7 @@ class Player:
         self.action_start_time = pygame.time.get_ticks()
 
     def move(self):
-        print(f"Moving: state={self.state}, x={self.x}, y={self.y}, target_x={self.target_x}, target_y={self.target_y}")
+
         if self.state == "walking":
             dx = self.target_x - self.x
             dy = self.target_y - self.y
@@ -355,18 +355,17 @@ class Player:
 
     def draw(self, screen, camera_x):
         screen_x = self.x - camera_x
-        print(f"Drawing player: state={self.state}, position=(screen_x={screen_x}, y={self.y}), camera_x={camera_x}")
+
         if 0 <= screen_x <= screen.get_width() and 0 <= self.y <= screen.get_height():
             try:
                 image = self.images[self.state]
                 screen.blit(image, (screen_x, self.y))
             except KeyError as e:
-                print(f"Error drawing player: state {self.state} not found in images, using default")
+
                 default_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
                 default_surface.fill((255, 0, 0, 128))
                 screen.blit(default_surface, (screen_x, self.y))
-        else:
-            print(f"Player out of screen bounds: screen_x={screen_x}, y={self.y}, screen_size=({screen.get_width()}, {screen.get_height()})")
+
 
     def __str__(self):
         return f"Player(x={self.x}, y={self.y}, state={self.state})"

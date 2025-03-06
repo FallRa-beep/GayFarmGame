@@ -4,22 +4,27 @@ import images
 from translations import get_text
 from game_utils import snap_to_grid, check_collision
 
-
-def render_game(screen, player, objects, camera_x, screen_width, map_width, coins, harvest, products, level,
-                game_context):
+def render_game(screen, player, objects, camera_x, screen_width, map_width, coins, harvest, products, level, game_context):
     mx, my = pygame.mouse.get_pos()
-    screen.fill(WHITE)
+    # Убираем screen.fill(WHITE), так как теперь у нас есть фон из тайлов
+
+    # Отрисовка тайлов
+    tile_size = 32
+    if "map_tiles" in game_context:
+        for tile in game_context["map_tiles"]:
+            tile_image = images.GAME_IMAGES[tile["type"]]
+            screen_x = tile["x"] - camera_x
+            # Отрисовываем только видимые тайлы для оптимизации
+            if -tile_size <= screen_x <= screen_width:
+                screen.blit(tile_image, (screen_x, tile["y"]))
 
     # Отрисовка объектов и игрока
     for obj in objects:
-        obj.draw(screen, camera_x)  # Отрисовка объектов
-    player.draw(screen, camera_x)  # Отрисовка игрока
-    print(
-        f"Rendering player at position (screen_x={player.x - camera_x}, y={player.y}), camera_x={camera_x}, state={player.state}")
+        obj.draw(screen, camera_x)
+    player.draw(screen, camera_x)
 
     # Отрисовка меню
-    game_context["menu_manager"].draw(screen, camera_x)
-    print(f"Drawing menus: active_menu={game_context['menu_manager'].active_menu}")
+    game_context["menu_manager"].draw(screen, camera_x, harvest, products)  # Добавляем harvest и products
 
     # Отрисовка интерфейса ресурсов
     small_font = pygame.font.Font(None, 24)  # Меньший шрифт (24)
@@ -34,9 +39,9 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
     icon_height = coin_image.get_height()  # Высота иконок (16 пикселей)
     background_height = 26  # Высота фона (16 пикселей иконки + 5 сверху + 5 снизу для центрирования)
     background_width = (coin_image.get_width() + 5 + small_font.size(str(coins))[0] + 30 +  # Монеты
-                        harvest_image.get_width() + 5 + small_font.size(str(harvest))[0] + 30 +  # Урожай
-                        product_image.get_width() + 5 + small_font.size(str(products))[0] + 30 +  # Продукты
-                        small_font.size(f"{get_text('Level', game_context['language'])}: {level}")[0] + 10)  # Уровень
+                       harvest_image.get_width() + 5 + small_font.size(str(harvest))[0] + 30 +  # Урожай
+                       product_image.get_width() + 5 + small_font.size(str(products))[0] + 30 +  # Продукты
+                       small_font.size(f"{get_text('Level', game_context['language'])}: {level}")[0] + 10)  # Уровень
     background_rect = pygame.Rect(0, 0, background_width, background_height)
     pygame.draw.rect(screen, (211, 211, 211, 128), background_rect)  # Полупрозрачный светло-серый фон
 
@@ -49,7 +54,7 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
     coins_text = small_font.render(str(coins), True, BLACK)
     screen.blit(coins_text, (x_offset + 5 + coin_image.get_width() + 5, y_offset))
     coins_rect = pygame.Rect(x_offset + 5, y_offset, coin_image.get_width() + coins_text.get_width() + 5 + 30,
-                             coin_image.get_height())
+                            coin_image.get_height())
 
     # Урожай
     x_offset += coin_image.get_width() + 5 + coins_text.get_width() + 30
@@ -57,7 +62,7 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
     harvest_text = small_font.render(str(harvest), True, BLACK)
     screen.blit(harvest_text, (x_offset + 5 + harvest_image.get_width() + 5, y_offset))
     harvest_rect = pygame.Rect(x_offset + 5, y_offset, harvest_image.get_width() + harvest_text.get_width() + 5 + 30,
-                               harvest_image.get_height())
+                              harvest_image.get_height())
 
     # Продукты
     x_offset += harvest_image.get_width() + 5 + harvest_text.get_width() + 30
@@ -65,7 +70,7 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
     products_text = small_font.render(str(products), True, BLACK)
     screen.blit(products_text, (x_offset + 5 + product_image.get_width() + 5, y_offset))
     products_rect = pygame.Rect(x_offset + 5, y_offset, product_image.get_width() + products_text.get_width() + 5 + 30,
-                                product_image.get_height())
+                               product_image.get_height())
 
     # Уровень
     x_offset += product_image.get_width() + 5 + products_text.get_width() + 30
@@ -85,7 +90,7 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
                                                 SCREEN_HEIGHT - build_menu.preview_build.height))
 
         preview_surface = pygame.Surface((build_menu.preview_build.width, build_menu.preview_build.height),
-                                         pygame.SRCALPHA)
+                                        pygame.SRCALPHA)
         obj_type = build_menu.preview_build.obj_type
         if obj_type == "bed":
             base_image = images.GAME_IMAGES["bed_dry"]
@@ -93,21 +98,21 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
         elif obj_type == "house":
             house_image = images.GAME_IMAGES["house"]
             scaled_house = pygame.transform.scale(house_image,
-                                                  (build_menu.preview_build.width, build_menu.preview_build.height))
+                                                 (build_menu.preview_build.width, build_menu.preview_build.height))
             preview_surface.blit(scaled_house, (0, 0))
         elif obj_type == "mill":
             mill_image = images.GAME_IMAGES["mill"]
             scaled_mill = pygame.transform.scale(mill_image,
-                                                 (build_menu.preview_build.width, build_menu.preview_build.height))
+                                                (build_menu.preview_build.width, build_menu.preview_build.height))
             preview_surface.blit(scaled_mill, (0, 0))
         elif obj_type == "market_stall":
             stall_image = images.GAME_IMAGES["market_stall"]
             scaled_stall = pygame.transform.scale(stall_image,
-                                                  (build_menu.preview_build.width, build_menu.preview_build.height))
+                                                 (build_menu.preview_build.width, build_menu.preview_build.height))
             preview_surface.blit(scaled_stall, (0, 0))
         else:
             pygame.draw.rect(preview_surface, build_menu.preview_build.color,
-                             (0, 0, build_menu.preview_build.width, build_menu.preview_build.height))
+                            (0, 0, build_menu.preview_build.width, build_menu.preview_build.height))
 
         preview_surface.set_alpha(128)
         collision = check_collision(build_menu.preview_build,
@@ -115,10 +120,10 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
                                     allow_touching=True)
 
         glow_surface = pygame.Surface((build_menu.preview_build.width + 20, build_menu.preview_build.height + 20),
-                                      pygame.SRCALPHA)
+                                     pygame.SRCALPHA)
         glow_color = (0, 255, 0, 100) if not collision else (255, 0, 0, 100)
         pygame.draw.rect(glow_surface, glow_color,
-                         (10, 10, build_menu.preview_build.width, build_menu.preview_build.height), 4)
+                        (10, 10, build_menu.preview_build.width, build_menu.preview_build.height), 4)
 
         screen.blit(glow_surface, (build_menu.preview_build.x - camera_x - 10, build_menu.preview_build.y - 10))
         screen.blit(preview_surface, (build_menu.preview_build.x - camera_x, build_menu.preview_build.y))
@@ -139,7 +144,7 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
         tooltip = tooltip_font.render("Золотые искры, которые заставляют сердца биться чаще!", True, WHITE)
     elif harvest_rect.collidepoint(mx, my):
         tooltip = tooltip_font.render("Сочные плоды твоих трудов — сладость, которую хочется попробовать...", True,
-                                      WHITE)
+                                     WHITE)
     elif products_rect.collidepoint(mx, my):
         tooltip = tooltip_font.render("Вкусные деликатесы, чтобы соблазнить любого поклонника!", True, WHITE)
     elif level_rect.collidepoint(mx, my):
@@ -162,10 +167,7 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
     # Обработка движения камеры
     if mx < 50 and camera_x > 0:
         camera_x -= 5
-        print(f"Camera moving left, new camera_x={camera_x}")
     elif mx > screen_width - 50 and camera_x < map_width - screen_width:
         camera_x += 5
-        print(f"Camera moving right, new camera_x={camera_x}")
 
-    print(f"Returning camera_x: {camera_x}")
     return camera_x

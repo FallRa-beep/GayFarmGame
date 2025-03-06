@@ -73,10 +73,12 @@ def main():
                 elif action == "continue":
                     loaded_data = load_game(screen)
                     if loaded_data:
-                        player, house, objects, camera_x, harvest_count, level, coins, harvest, products, _ = loaded_data
+                        # Распаковываем все 11 значений, включая map_tiles
+                        player, house, objects, camera_x, harvest_count, level, coins, harvest, products, game_language, map_tiles = loaded_data
                         # Обновляем язык игры до текущего языка меню
                         game_language = menu.current_language
-                        result = game_loop(screen, player, house, objects, camera_x, harvest_count, level, coins, harvest, products, game_language)
+                        result = game_loop(screen, player, house, objects, camera_x, harvest_count, level, coins,
+                                           harvest, products, game_language, map_tiles)
                         if result in ["exit", "main_menu"]:
                             if result == "exit":
                                 running = False

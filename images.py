@@ -1,4 +1,3 @@
-# images.py
 import pygame
 import os
 from config import BROWN, YELLOW, GREEN, BLACK, GRAY, SEEDS
@@ -7,14 +6,19 @@ def load_game_images():
     """Загружает и масштабирует все изображения игры."""
     IMAGES = {}
 
-    def load_image(path, size, fallback_color):
+    def load_image(path, size, fallback_color, force_size=None):
         try:
             print(f"Attempting to load image from {path}")
             if not os.path.exists(path):
                 print(f"File not found: {path}")
                 raise FileNotFoundError(f"Image file {path} does not exist")
-            image = pygame.transform.scale(pygame.image.load(path).convert_alpha(), size)
-            print(f"Successfully loaded image from {path} with size {size}")
+            image = pygame.image.load(path).convert_alpha()
+            print(f"Successfully loaded image from {path}")
+            # Если указан force_size, масштабируем изображение до этого размера
+            if force_size:
+                image = pygame.transform.scale(image, force_size)
+            else:
+                image = pygame.transform.scale(image, size)
             return image
         except (pygame.error, FileNotFoundError) as e:
             print(f"Error loading {path}: {e}. Using fallback color {fallback_color}.")
@@ -22,14 +26,19 @@ def load_game_images():
             surface.fill(fallback_color)
             return surface
 
-    # Загрузка изображений игрока с дополнительной отладкой
+    # Загрузка изображений игрока (force_size не нужен, оставляем как есть)
     IMAGES["player_idle"] = load_image(os.path.join("images", "heroes", "player", "player_idle.png"), (64, 64), BROWN)
     IMAGES["player_walking"] = load_image(os.path.join("images", "heroes", "player", "player_walking.png"), (64, 64), BROWN)
     IMAGES["player_watering"] = load_image(os.path.join("images", "heroes", "player", "player_watering.png"), (64, 64), (0, 0, 255))
     IMAGES["player_harvesting"] = load_image(os.path.join("images", "heroes", "player", "player_harvesting.png"), (64, 64), GREEN)
     IMAGES["player_processing"] = load_image(os.path.join("images", "heroes", "player", "player_processing.png"), (64, 64), (255, 165, 0))
 
-    # Остальные изображения (оставь без изменений, если они работают)
+    # Загрузка тайлов травы с принудительным масштабированием до 32x32
+    IMAGES["grass_tile_1"] = load_image(os.path.join("images", "tiles", "grass_1.png"), (32, 32), GREEN, force_size=(32, 32))
+    IMAGES["grass_tile_2"] = load_image(os.path.join("images", "tiles", "grass_2.png"), (32, 32), GREEN, force_size=(32, 32))
+    IMAGES["grass_tile_3"] = load_image(os.path.join("images", "tiles", "grass_3.png"), (32, 32), GREEN, force_size=(32, 32))
+
+    # Остальные изображения (force_size не нужен)
     IMAGES["bed_dry"] = load_image(os.path.join("images", "map_objects", "bed_dry.png"), (64, 64), BROWN)
     IMAGES["bed_wet"] = load_image(os.path.join("images", "map_objects", "bed_wet.png"), (64, 64), (0, 0, 255))
     IMAGES["bed_ripe"] = load_image(os.path.join("images", "map_objects", "bed_ripe.png"), (64, 64), YELLOW)
@@ -41,7 +50,7 @@ def load_game_images():
     IMAGES["coin_menu"] = load_image(os.path.join("images", "ui", "coin.png"), (16, 16), YELLOW)
     IMAGES["harvest"] = load_image(os.path.join("images", "ui", "harvest.png"), (32, 32), GREEN)
     IMAGES["product"] = load_image(os.path.join("images", "ui", "product.png"), (32, 32), (255, 165, 0))
-    IMAGES["canning_cellar"] = load_image(os.path.join("images", "map_objects", "canning_cellar.png"), (64, 64),(128, 0, 128))
+    IMAGES["canning_cellar"] = load_image(os.path.join("images", "map_objects", "canning_cellar.png"), (64, 64), (128, 0, 128))
 
     for seed in SEEDS:
         plant_name = seed["name"]

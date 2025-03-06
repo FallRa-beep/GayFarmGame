@@ -11,7 +11,7 @@ OBJECT_TYPE_TO_CLASS = {
     "canning_cellar": CanningCellar
 }
 
-def save_game(player, house, objects, camera_x, screen, harvest_count, level, coins, harvest, products, language):
+def save_game(player, house, objects, camera_x, screen, harvest_count, level, coins, harvest, products, language, game_context):
     data = {
         "player": {k: v for k, v in player.__dict__.items() if k != "images"},
         "house": house.to_dict(),
@@ -22,7 +22,8 @@ def save_game(player, house, objects, camera_x, screen, harvest_count, level, co
         "coins": coins,
         "harvest": harvest,
         "products": products,
-        "language": language
+        "language": language,
+        "map_tiles": game_context.get("map_tiles", [])  # Берем map_tiles из переданного game_context
     }
     with open("save_game.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
@@ -34,10 +35,10 @@ def load_game(screen):
             data = json.load(f)
     except FileNotFoundError:
         print("No save file found, returning default values")
-        return None, None, [], 0, 0, 1, 10, 0, 0, "en"
+        return None, None, [], 0, 0, 1, 10, 0, 0, "en", []  # Добавляем пустой список map_tiles
     except json.JSONDecodeError as e:
         print(f"Error decoding save_game.json: {e}")
-        return None, None, [], 0, 0, 1, 10, 0, 0, "en"
+        return None, None, [], 0, 0, 1, 10, 0, 0, "en", []  # Добавляем пустой список map_tiles
 
     player_data = data["player"]
     house_data = data["house"]
@@ -49,6 +50,7 @@ def load_game(screen):
     harvest = data["harvest"]
     products = data["products"]
     language = data["language"]
+    map_tiles = data.get("map_tiles", [])  # Загружаем тайлы, если они есть
 
     player = Player(player_data["x"], player_data["y"], player_data["width"], player_data["height"],
                     player_data["speed"], language)
@@ -74,4 +76,4 @@ def load_game(screen):
         obj.x = max(0, min(obj.x, MAP_WIDTH - obj.width))
         obj.y = max(0, min(obj.y, SCREEN_HEIGHT - obj.height))
 
-    return player, house, objects, camera_x, harvest_count, level, coins, harvest, products, language
+    return player, house, objects, camera_x, harvest_count, level, coins, harvest, products, language, map_tiles

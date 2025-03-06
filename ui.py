@@ -24,22 +24,33 @@ class Menu:
 
     def draw(self, screen):
         screen_width = screen.get_width()
-        screen_height = SCREEN_HEIGHT
+        screen_height = SCREEN_HEIGHT  # 600 пикселей
 
+        # Загружаем фон
         background = images.GAME_IMAGES["background_menu"]
         bg_width = background.get_width()
+        bg_height = background.get_height()
 
-        if screen_width > bg_width:
-            excess_width = screen_width - bg_width
-            clip_x = excess_width // 2
-            clip_width = bg_width
+        # Приводим высоту фона к 600 пикселям, если она отличается
+        if bg_height != screen_height:
+            scale_factor = screen_height / bg_height
+            new_width = int(bg_width * scale_factor)
+            background = pygame.transform.scale(background, (new_width, screen_height))
+            bg_width = new_width
         else:
-            clip_x = 0
-            clip_width = screen_width
+            background = background  # Оставляем как есть, если высота уже 600
 
-        clipped_background = pygame.Surface((clip_width, screen_height))
-        clipped_background.blit(background, (0, 0), (clip_x, 0, clip_width, screen_height))
-        screen.blit(clipped_background, ((screen_width - clip_width) // 2, 0))
+        # Если ширина фона меньше ширины экрана, растягиваем по ширине
+        if bg_width < screen_width:
+            scaled_background = pygame.transform.scale(background, (screen_width, screen_height))
+            screen.blit(scaled_background, (0, 0))
+        # Если ширина фона больше ширины экрана, обрезаем и центрируем
+        else:
+            clip_x = (bg_width - screen_width) // 2
+            clip_width = screen_width
+            clipped_background = pygame.Surface((clip_width, screen_height))
+            clipped_background.blit(background, (0, 0), (clip_x, 0, clip_width, screen_height))
+            screen.blit(clipped_background, (0, 0))
 
         if not self.settings_open:
             for i, option in enumerate(self.options):
