@@ -1,17 +1,20 @@
+# ui.py
 import pygame
 import math
 import images
 from config import SCREEN_HEIGHT, WHITE, BLACK, GRAY, GREEN, SEEDS
 from translations import get_text
 
+from save_load import list_saves  # Импортируем list_saves
+
 class Menu:
     @staticmethod
     def is_save_exists():
-        import os
-        return os.path.exists("save_game.json")
+        # Проверяем, есть ли хотя бы один сохраненный слот в папке saves
+        return len(list_saves()) > 0
 
-    def __init__(self):
-        self.font = pygame.font.Font(None, 48)
+    def __init__(self, font):
+        self.font = font
         self.current_language = "en"
         self.options = [
             {"text": get_text("New Game", self.current_language), "color": WHITE, "action": "new_game"},
@@ -24,27 +27,23 @@ class Menu:
 
     def draw(self, screen):
         screen_width = screen.get_width()
-        screen_height = SCREEN_HEIGHT  # 600 пикселей
+        screen_height = SCREEN_HEIGHT
 
-        # Загружаем фон
         background = images.GAME_IMAGES["background_menu"]
         bg_width = background.get_width()
         bg_height = background.get_height()
 
-        # Приводим высоту фона к 600 пикселям, если она отличается
         if bg_height != screen_height:
             scale_factor = screen_height / bg_height
             new_width = int(bg_width * scale_factor)
             background = pygame.transform.scale(background, (new_width, screen_height))
             bg_width = new_width
         else:
-            background = background  # Оставляем как есть, если высота уже 600
+            background = background
 
-        # Если ширина фона меньше ширины экрана, растягиваем по ширине
         if bg_width < screen_width:
             scaled_background = pygame.transform.scale(background, (screen_width, screen_height))
             screen.blit(scaled_background, (0, 0))
-        # Если ширина фона больше ширины экрана, обрезаем и центрируем
         else:
             clip_x = (bg_width - screen_width) // 2
             clip_width = screen_width
@@ -121,22 +120,17 @@ class Menu:
                     self.settings_open = False
                     return None
         return None
-
-
-# ui.py (фрагмент draw_wheel)
-def draw_wheel(screen, game_context, camera_x):
-    """Отрисовка колеса действий в месте клика."""
+def draw_wheel(screen, game_context, camera_x, fonts):
     if not game_context.get("wheel_open"):
         return
 
-    center_x = game_context["wheel_x"] - camera_x  # Используем координаты клика, преобразованные в экранные
-    center_y = game_context["wheel_y"]  # Используем экранные Y координаты клика
+    center_x = game_context["wheel_x"] - camera_x
+    center_y = game_context["wheel_y"]
     radius = 50
     pygame.draw.circle(screen, (211, 211, 211), (int(center_x), int(center_y)), radius, 2)
 
-    # "Строительство" справа (0 градусов), "Посадки" слева (180 градусов)
-    build_angle = 90  # Справа (0 градусов)
-    plant_angle = 270  # Слева (180 градусов)
+    build_angle = 90
+    plant_angle = 270
 
     build_endpoint = (
         center_x + radius * math.cos(math.radians(build_angle)),
@@ -147,7 +141,7 @@ def draw_wheel(screen, game_context, camera_x):
         center_y - radius * math.sin(math.radians(plant_angle))
     )
 
-    font = pygame.font.Font(None, 24)  # Определяем font здесь для использования
+    font = fonts["desc_font_large"]
     build_text = font.render(get_text("Construction", game_context["language"]), True, (0, 0, 255))
     plant_text = font.render(get_text("Planting", game_context["language"]), True, (0, 255, 0))
 
@@ -161,13 +155,13 @@ def draw_wheel(screen, game_context, camera_x):
         elif selected_action == "plant":
             pygame.draw.circle(screen, (0, 255, 0), (int(center_x), int(center_y)), 5)
 
-def draw_seed_menu(game_context, coins, selected_seed=None, level=1):
+def draw_seed_menu(game_context, coins, fonts, selected_seed=None, level=1):
     screen = game_context["screen"]
     language = game_context["language"]
     screen_width = screen.get_width()
-    font = pygame.font.Font(None, 48)  # Определяем font здесь
-    tooltip_font = pygame.font.Font(None, 24)
-    small_font = pygame.font.Font(None, 24)
+    font = fonts["title_font_large"]
+    tooltip_font = fonts["desc_font_large"]
+    small_font = fonts["desc_font_large"]
 
     menu_width, menu_height = 200, SCREEN_HEIGHT
     pygame.draw.rect(screen, (211, 211, 211), (screen_width - menu_width, 0, menu_width, menu_height))
@@ -263,14 +257,13 @@ def draw_seed_menu(game_context, coins, selected_seed=None, level=1):
                 text_surface = tooltip_font.render(line, True, WHITE)
                 screen.blit(text_surface, (tooltip_rect.x + 5, tooltip_rect.y + 5 + i * 20))
 
-
-def draw_build_menu(game_context, coins, current_index=0, build_type="functional"):
+def draw_build_menu(game_context, coins, fonts, current_index=0, build_type="functional"):
     screen = game_context["screen"]
     language = game_context["language"]
     screen_width = screen.get_width()
-    font = pygame.font.Font(None, 48)  # Определяем font здесь
-    tooltip_font = pygame.font.Font(None, 20)
-    small_font = pygame.font.Font(None, 24)
+    font = fonts["title_font_medium"]
+    tooltip_font = fonts["desc_font_small"]
+    small_font = fonts["desc_font_large"]
 
     build_options = [
         {"text": get_text("Bed", language=language), "cost": 10, "action": "new", "type": "functional",
@@ -389,9 +382,8 @@ def draw_build_menu(game_context, coins, current_index=0, build_type="functional
                         type_height)]]
     }
 
-
-def confirm_dialog(screen, message):
-    font = pygame.font.Font(None, 36)
+def confirm_dialog(screen, message, fonts):
+    font = fonts["title_font_medium"]
     dialog_running = True
     while dialog_running:
         for event in pygame.event.get():
@@ -419,12 +411,12 @@ def confirm_dialog(screen, message):
         pygame.display.flip()
         pygame.time.Clock().tick(60)
 
-def draw_market_menu(game_context, coins, harvest, products):
+def draw_market_menu(game_context, coins, harvest, products, fonts):
     screen = game_context["screen"]
     language = game_context["language"]
     screen_width = screen.get_width()
-    font = pygame.font.Font(None, 36)
-    small_font = pygame.font.Font(None, 24)
+    font = fonts["title_font_medium"]
+    small_font = fonts["desc_font_large"]
 
     menu_width, menu_height = 400, 250
     menu_x = (screen_width - menu_width) // 2
@@ -437,12 +429,10 @@ def draw_market_menu(game_context, coins, harvest, products):
     close_text = small_font.render("×", True, BLACK)
     screen.blit(close_text, close_text.get_rect(center=close_rect.center))
 
-    # Иконки без названий
     harvest_image = images.GAME_IMAGES["harvest"]
     product_image = images.GAME_IMAGES["product"]
     coin_image = images.GAME_IMAGES["coin_menu"]
 
-    # Окошко для Урожая с двумя стрелочками
     harvest_count = game_context["market_harvest_to_sell"]
     harvest_rect = pygame.Rect(menu_x + 150, menu_y + 70, 50, 40)
     pygame.draw.rect(screen, WHITE, harvest_rect)
@@ -457,7 +447,6 @@ def draw_market_menu(game_context, coins, harvest, products):
     screen.blit(small_font.render("↑", True, BLACK), harvest_increase.move(10, 2))
     screen.blit(small_font.render("↓", True, BLACK), harvest_decrease.move(10, 2))
 
-    # Окошко для Продуктов с двумя стрелочками
     products_count = game_context["market_products_to_sell"]
     products_rect = pygame.Rect(menu_x + 150, menu_y + 130, 50, 40)
     pygame.draw.rect(screen, WHITE, products_rect)
@@ -472,13 +461,11 @@ def draw_market_menu(game_context, coins, harvest, products):
     screen.blit(small_font.render("↑", True, BLACK), products_increase.move(10, 2))
     screen.blit(small_font.render("↓", True, BLACK), products_decrease.move(10, 2))
 
-    # Иконка монетки вместо "Итого"
     total_value = (game_context["market_harvest_to_sell"] * 2) + (game_context["market_products_to_sell"] * 15)
     screen.blit(coin_image, (menu_x + 150, menu_y + 200))
     value_text = small_font.render(str(total_value), True, BLACK)
     screen.blit(value_text, (menu_x + 190, menu_y + 202))
 
-    # Кнопка "Продать"
     sell_rect = pygame.Rect(menu_x + 150, menu_y + 230, 100, 40)
     pygame.draw.rect(screen, GREEN, sell_rect)
     sell_text = small_font.render(get_text("Sell", language), True, BLACK)
