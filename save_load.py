@@ -1,3 +1,4 @@
+# save_load.py
 import json
 import os
 import time
@@ -20,8 +21,10 @@ def list_saves():
     saves_dir = "saves"
     if not os.path.exists(saves_dir):
         os.makedirs(saves_dir)
+        print(f"Создана папка {saves_dir}")
     save_files = [f for f in os.listdir(saves_dir) if f.endswith(".json")]
     save_data = []
+    print(f"Найденные файлы в {saves_dir}: {save_files}")
     for file_name in save_files:
         file_path = os.path.join(saves_dir, file_name)
         timestamp = os.path.getmtime(file_path)
@@ -29,6 +32,7 @@ def list_saves():
             with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             save_data.append({"filename": file_name, "timestamp": timestamp, "data": data})
+            print(f"Успешно прочитан файл: {file_name}")
         except json.JSONDecodeError as e:
             print(f"Ошибка при декодировании файла {file_name}: {e}. Файл будет пропущен.")
             continue  # Пропускаем повреждённый файл
@@ -38,11 +42,14 @@ def load_game(screen, filename=None):
     """Загружает игру из указанного файла или последнего сохранения, если filename не задан."""
     saves_dir = "saves"
     if not os.path.exists(saves_dir):
+        print(f"Папка {saves_dir} не существует")
         return None
 
     if filename is None:
         save_files = list_saves()
+        print(f"Список сохранений: {save_files}")
         if not save_files:
+            print("Нет доступных сохранений")
             return None
         filename = save_files[0]["filename"]  # Берем файл с максимальным timestamp (последнее сохранение)
 
@@ -51,6 +58,7 @@ def load_game(screen, filename=None):
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
+            print(f"Данные из {filename}: {data}")
             # Восстановление данных
             player_data = data.get("player", {})
             house_data = data.get("house", {})
@@ -95,10 +103,12 @@ def load_game(screen, filename=None):
                 obj.reload_images()  # Перезагружаем изображения
                 objects.append(obj)
 
+            print(f"Успешно загружено: player={player}, house={house}, objects={len(objects)}")
             return player, house, objects, camera_x, harvest_count, level, coins, harvest, products, language, map_tiles
         except json.JSONDecodeError as e:
             print(f"Ошибка при загрузке файла {filename}: {e}. Файл повреждён.")
             return None
+    print(f"Файл {file_path} не существует")
     return None
 
 def save_game(player, house, objects, camera_x, harvest_count, level, coins, harvest, products, language, game_context, filename):
@@ -106,6 +116,7 @@ def save_game(player, house, objects, camera_x, harvest_count, level, coins, har
     saves_dir = "saves"
     if not os.path.exists(saves_dir):
         os.makedirs(saves_dir)
+        print(f"Создана папка {saves_dir}")
 
     file_path = os.path.join(saves_dir, filename)
     # Фильтруем данные перед сохранением
@@ -133,3 +144,4 @@ def save_game(player, house, objects, camera_x, harvest_count, level, coins, har
     save_data["game_context"] = filtered_game_context  # Сохраняем отфильтрованный game_context
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(save_data, f, indent=4, ensure_ascii=False)
+        print(f"Игра успешно сохранена в {file_path}")
