@@ -41,7 +41,9 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
         "level": level,
         "coins": coins,
         "harvest": harvest,
-        "products": products
+        "products": products,
+        "dragging_obj": None,  # Для отслеживания перетаскиваемого объекта
+        "preview_obj": None
     }
 
     if player is None:
@@ -61,7 +63,8 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
         mill_y = snap_to_grid(100, grid_size=32)
         cellar_x = snap_to_grid(screen_width // 2 + 164, grid_size=32)
         cellar_y = snap_to_grid(100, grid_size=32)
-        objects = [Bed(bed1_x, bed1_y), Bed(bed2_x, bed2_y), Bed(bed3_x, bed3_y), house, market_stall,
+        objects = [Bed(bed1_x, bed1_y, width=32, height=32), Bed(bed2_x, bed2_y, width=32, height=32),
+                   Bed(bed3_x, bed3_y, width=32, height=32), house, market_stall,
                    Mill(mill_x, mill_y), CanningCellar(cellar_x, cellar_y)]
         for obj in objects:
             quad_tree.insert(obj)
@@ -196,7 +199,6 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
                         harvest = result["updated_resources"]["harvest"]
                         products = result["updated_resources"]["products"]
                         print(f"Updated resources: coins={coins}, harvest={harvest}, products={products}")
-                        # Обновляем game_context
                         game_context.update({
                             "coins": coins,
                             "harvest": harvest,
@@ -205,6 +207,11 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
                     if result.get("action") == "build":
                         if objects:
                             new_obj = objects[-1]
+                            if isinstance(new_obj, Bed):
+                                grid_x = snap_to_grid(new_obj.x, grid_size=32)
+                                grid_y = snap_to_grid(new_obj.y, grid_size=32)
+                                new_obj.x = grid_x
+                                new_obj.y = grid_y
                             if new_obj not in quad_tree.get_all_objects():
                                 quad_tree.insert(new_obj)
                     elif result.get("action") == "plant":
@@ -214,11 +221,20 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
                                 quad_tree.insert(obj)
                                 break
                     elif result.get("action") == "sell":
-                        pass  # Ресурсы уже обновлены
+                        pass
+                    elif result.get("action") == "start_move_preview":
+                        game_context["dragging_obj"] = result.get("moved_obj")
+                        game_context["preview_obj"] = result.get("preview_obj")  # Сохраняем предпросмотр
                     elif result.get("action") == "move_complete":
                         moved_obj = result.get("moved_obj")
-                        if moved_obj:
+                        if moved_obj and isinstance(moved_obj, Bed):
+                            grid_x = snap_to_grid(moved_obj.x, grid_size=32)
+                            grid_y = snap_to_grid(moved_obj.y, grid_size=32)
+                            moved_obj.x = grid_x
+                            moved_obj.y = grid_y
                             quad_tree.update_position(moved_obj, moved_obj.x, moved_obj.y)
+                        game_context["dragging_obj"] = None
+                        game_context["preview_obj"] = None
                     elif result.get("action") == "destroy_complete":
                         destroyed_obj = result.get("destroyed_obj")
                         if destroyed_obj:

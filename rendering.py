@@ -83,12 +83,12 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
     # Отрисовка предпросмотра строительства/перемещения
     build_menu = game_context["menu_manager"].menus["build"]
     if build_menu.build_action in ["build_preview", "move_preview"] and build_menu.preview_build:
-        build_menu.preview_build.x = snap_to_grid(mx + camera_x, grid_size=32) - build_menu.preview_build.width // 2
-        build_menu.preview_build.y = snap_to_grid(my, grid_size=32) - build_menu.preview_build.height // 2
+        build_menu.preview_build.x = snap_to_grid(mx + camera_x,
+                                                  grid_size=32)
+        build_menu.preview_build.y = snap_to_grid(my, grid_size=32)
         build_menu.preview_build.x = max(0, min(build_menu.preview_build.x, map_width - build_menu.preview_build.width))
         build_menu.preview_build.y = max(0, min(build_menu.preview_build.y,
                                                 SCREEN_HEIGHT - build_menu.preview_build.height))
-
         preview_surface = pygame.Surface((build_menu.preview_build.width, build_menu.preview_build.height),
                                         pygame.SRCALPHA)
         obj_type = build_menu.preview_build.obj_type
@@ -141,14 +141,14 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
     # Отрисовка tooltip поверх всех элементов
     tooltip = None
     if coins_rect.collidepoint(mx, my):
-        tooltip = tooltip_font.render("Золотые искры, которые заставляют сердца биться чаще!", True, WHITE)
+        tooltip = tooltip_font.render(get_text("Золотые искры, которые заставляют сердца биться чаще!"), True, WHITE)
     elif harvest_rect.collidepoint(mx, my):
-        tooltip = tooltip_font.render("Сочные плоды твоих трудов — сладость, которую хочется попробовать...", True,
+        tooltip = tooltip_font.render(get_text("Сочные плоды твоих трудов — сладость, которую хочется попробовать..."), True,
                                      WHITE)
     elif products_rect.collidepoint(mx, my):
-        tooltip = tooltip_font.render("Вкусные деликатесы, чтобы соблазнить любого поклонника!", True, WHITE)
+        tooltip = tooltip_font.render(get_text("Вкусные деликатесы, чтобы соблазнить любого!"), True, WHITE)
     elif level_rect.collidepoint(mx, my):
-        tooltip = tooltip_font.render("Твой путь к вершине — горячий и страстный подъем к успеху!", True, WHITE)
+        tooltip = tooltip_font.render(get_text("Твой путь к вершине — горячий и страстный подъем к успеху!"), True, WHITE)
 
     if tooltip:
         tooltip_rect = pygame.Rect(mx + 10, my, tooltip.get_width() + 10, tooltip.get_height() + 10)

@@ -7,44 +7,135 @@ from translations import get_text
 class Menu:
     @staticmethod
     def is_save_exists():
-        import os
-        return os.path.exists("save_game.json")
+        from save_load import list_saves
+        saves = list_saves()
+        return len(saves) > 0
 
     def __init__(self):
-        self.font = pygame.font.Font(None, 48)
+        self.font = pygame.font.Font(None, 36)
         self.current_language = "en"
+        self.button_normal = images.GAME_IMAGES.get("button_normal")
+        self.button_hover = images.GAME_IMAGES.get("button_hover")
+        if not self.button_normal or not self.button_hover:
+            print("Warning: Button images not loaded correctly!")
+            self.button_normal = pygame.Surface((200, 60))
+            self.button_normal.fill(GRAY)
+            self.button_hover = pygame.Surface((200, 60))
+            self.button_hover.fill(WHITE)
+        self.close_button = images.GAME_IMAGES.get("close_button")
+        self.close_hover = images.GAME_IMAGES.get("close_button_hover")
+        if not self.close_button:
+            print("Warning: Close button image not loaded correctly!")
+            self.close_button = pygame.Surface((30, 30))
+            self.close_button.fill((255, 0, 0))
+        self.arrow_left = images.GAME_IMAGES.get("arrow_left")
+        self.arrow_right = images.GAME_IMAGES.get("arrow_right")
+        if not self.arrow_left or not self.arrow_right:
+            print("Warning: Arrow images not loaded correctly!")
+            self.arrow_left = pygame.Surface((20, 20))
+            self.arrow_left.fill(GRAY)
+            self.arrow_right = pygame.Surface((20, 20))
+            self.arrow_right.fill(GRAY)
+        else:
+            self.arrow_left = pygame.transform.scale(self.arrow_left, (20, 20))
+            self.arrow_right = pygame.transform.scale(self.arrow_right, (20, 20))
+
+        has_saves = self.is_save_exists()
         self.options = [
-            {"text": get_text("New Game", self.current_language), "color": WHITE, "action": "new_game"},
-            {"text": get_text("Continue", self.current_language), "color": GRAY if not self.is_save_exists() else WHITE,
-             "action": "continue"},
-            {"text": get_text("Settings", self.current_language), "color": WHITE, "action": "settings"},
-            {"text": get_text("Exit", self.current_language), "color": WHITE, "action": "exit"}
+            {"text": get_text("New Game", self.current_language), "image_normal": self.button_normal, "image_hover": self.button_hover, "color": WHITE, "action": "new_game"},
+            {"text": get_text("Continue", self.current_language), "image_normal": self.button_normal, "image_hover": self.button_hover, "color": WHITE if has_saves else GRAY, "action": "continue"},
+            {"text": get_text("Load", self.current_language), "image_normal": self.button_normal, "image_hover": self.button_hover, "color": WHITE if has_saves else GRAY, "action": "load"},
+            {"text": get_text("Settings", self.current_language), "image_normal": self.button_normal, "image_hover": self.button_hover, "color": WHITE, "action": "settings"},
         ]
         self.settings_open = False
+        self.option_rects = []
+        self.music_volume = 0.5
+        self.sound_volume = 0.5
+        self.dragging_music = False
+        self.dragging_sound = False
+
+        # Инициализация прямоугольников как None
+        self.close_rect = None
+        self.back_rect = None
+        self.left_arrow_rect = None
+        self.right_arrow_rect = None
+        self.lang_switch_rect = None
+        self.music_slider_rect = None
+        self.sound_slider_rect = None
+        self.slider_width = 200  # Ширина слайдера
+        self.music_slider_x = 0  # Будет обновлено в update_rects
+        self.sound_slider_x = 0  # Будет обновлено в update_rects
+
+    def update_rects(self, screen):
+        """Обновляет прямоугольники для элементов меню."""
+        screen_width = screen.get_width()
+        button_width, button_height = self.button_normal.get_size()
+        base_x = screen_width * 2 // 3
+        base_y = 50
+        spacing = 80
+        arrow_size = (20, 20)
+        slider_width = self.slider_width
+        slider_height = 10
+        knob_radius = 8
+
+        if not self.settings_open:
+            self.option_rects = []
+            for i, _ in enumerate(self.options):
+                button_x = base_x
+                button_y = base_y + i * 80
+                button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
+                self.option_rects.append(button_rect)
+            close_width, close_height = self.close_button.get_size()
+            self.close_rect = pygame.Rect(screen_width - close_width - 10, 10, close_width, close_height)
+        else:
+            self.back_rect = pygame.Rect(screen_width - 32 - 10, 10, 32, 32)
+
+            # Прямоугольники для переключения языка
+            lang_text = "English" if self.current_language == "en" else "Russian"
+            lang_switch_text = self.font.render(lang_text, True, WHITE)
+            text_width = lang_switch_text.get_width()
+            padding = 20
+            lang_switch_width = text_width + padding
+            lang_switch_height = button_height
+            left_arrow_x = base_x + button_width + 40
+            self.left_arrow_rect = pygame.Rect(left_arrow_x, base_y + spacing + (button_height - arrow_size[1]) // 2,
+                                               arrow_size[0], arrow_size[1])
+            gap = 10
+            lang_switch_x = left_arrow_x + arrow_size[0] + gap
+            self.lang_switch_rect = pygame.Rect(lang_switch_x, base_y + spacing, lang_switch_width, lang_switch_height)
+            right_arrow_x = lang_switch_x + lang_switch_width + gap
+            self.right_arrow_rect = pygame.Rect(right_arrow_x, base_y + spacing + (button_height - arrow_size[1]) // 2,
+                                                arrow_size[0], arrow_size[1])
+
+            # Прямоугольники для слайдеров
+            self.music_slider_x = base_x + button_width + 20
+            music_slider_y = base_y + 2 * spacing + (button_height - slider_height) // 2
+            self.music_slider_rect = pygame.Rect(self.music_slider_x - knob_radius, music_slider_y - knob_radius,
+                                                 slider_width + 2 * knob_radius, slider_height + 2 * knob_radius)
+
+            self.sound_slider_x = base_x + button_width + 20
+            sound_slider_y = base_y + 3 * spacing + (button_height - slider_height) // 2
+            self.sound_slider_rect = pygame.Rect(self.sound_slider_x - knob_radius, sound_slider_y - knob_radius,
+                                                 slider_width + 2 * knob_radius, slider_height + 2 * knob_radius)
 
     def draw(self, screen):
-        screen_width = screen.get_width()
-        screen_height = SCREEN_HEIGHT  # 600 пикселей
+        self.update_rects(screen)  # Обновляем прямоугольники перед отрисовкой
 
-        # Загружаем фон
+        screen_width = screen.get_width()
+        screen_height = SCREEN_HEIGHT
+
+        # Отрисовка фона
         background = images.GAME_IMAGES["background_menu"]
         bg_width = background.get_width()
         bg_height = background.get_height()
-
-        # Приводим высоту фона к 600 пикселям, если она отличается
         if bg_height != screen_height:
             scale_factor = screen_height / bg_height
             new_width = int(bg_width * scale_factor)
             background = pygame.transform.scale(background, (new_width, screen_height))
             bg_width = new_width
-        else:
-            background = background  # Оставляем как есть, если высота уже 600
-
-        # Если ширина фона меньше ширины экрана, растягиваем по ширине
         if bg_width < screen_width:
             scaled_background = pygame.transform.scale(background, (screen_width, screen_height))
             screen.blit(scaled_background, (0, 0))
-        # Если ширина фона больше ширины экрана, обрезаем и центрируем
         else:
             clip_x = (bg_width - screen_width) // 2
             clip_width = screen_width
@@ -52,75 +143,157 @@ class Menu:
             clipped_background.blit(background, (0, 0), (clip_x, 0, clip_width, screen_height))
             screen.blit(clipped_background, (0, 0))
 
+        mx, my = pygame.mouse.get_pos()
+
         if not self.settings_open:
             for i, option in enumerate(self.options):
+                button_rect = self.option_rects[i]
+                image_to_draw = option["image_hover"] if button_rect.collidepoint(mx, my) and option["color"] != GRAY else option["image_normal"]
+                screen.blit(image_to_draw, (button_rect.x, button_rect.y))
                 text_surface = self.font.render(option["text"], True, option["color"])
-                text_rect = text_surface.get_rect(center=(screen_width // 2, 100 + i * 60))
+                text_rect = text_surface.get_rect(center=button_rect.center)
                 screen.blit(text_surface, text_rect)
+
+            close_image = self.close_hover if self.close_rect.collidepoint(mx, my) else self.close_button
+            screen.blit(close_image, (self.close_rect.x, self.close_rect.y))
+
         else:
+            back_button = images.GAME_IMAGES.get("return")
+            back_hover = images.GAME_IMAGES.get("return_hover")
+            if not back_button:
+                back_button = pygame.Surface((32, 32))
+                back_button.fill(GRAY)
+            if not back_hover:
+                back_hover = back_button
+            image_to_draw = back_hover if self.back_rect.collidepoint(mx, my) else back_button
+            screen.blit(image_to_draw, (self.back_rect.x, self.back_rect.y))
+
+            button_width, button_height = self.button_normal.get_size()
+            base_x = screen_width * 2 // 3
+            base_y = 50
+            spacing = 80
+
+            settings_rect = pygame.Rect(base_x, base_y, button_width, button_height)
+            screen.blit(self.button_normal, (settings_rect.x, settings_rect.y))
             settings_title = self.font.render(get_text("Settings", self.current_language), True, WHITE)
-            screen.blit(settings_title, settings_title.get_rect(center=(screen_width // 2, 50)))
+            settings_text_rect = settings_title.get_rect(center=settings_rect.center)
+            screen.blit(settings_title, settings_text_rect)
 
-            language_text = self.font.render(get_text("Language", self.current_language), True, WHITE)
-            screen.blit(language_text, language_text.get_rect(center=(screen_width // 2, 120)))
+            language_rect = pygame.Rect(base_x, base_y + spacing, button_width, button_height)
+            screen.blit(self.button_normal, (language_rect.x, language_rect.y))
+            language_title = self.font.render(get_text("Language", self.current_language), True, WHITE)
+            language_text_rect = language_title.get_rect(center=language_rect.center)
+            screen.blit(language_title, language_text_rect)
 
-            ru_rect = pygame.Rect(screen_width // 2 - 100, 180, 80, 40)
-            en_rect = pygame.Rect(screen_width // 2 + 20, 180, 80, 40)
-            pygame.draw.rect(screen, GREEN if self.current_language == "ru" else WHITE, ru_rect)
-            pygame.draw.rect(screen, GREEN if self.current_language == "en" else WHITE, en_rect)
-            ru_text = self.font.render(get_text("Russian", self.current_language), True, BLACK)
-            en_text = self.font.render(get_text("English", self.current_language), True, BLACK)
-            screen.blit(ru_text, ru_text.get_rect(center=ru_rect.center))
-            screen.blit(en_text, en_text.get_rect(center=en_rect.center))
+            lang_text = "English" if self.current_language == "en" else "Russian"
+            lang_switch_text = self.font.render(lang_text, True, WHITE)
+            # Заменяем условие на постоянное использование self.button_normal
+            lang_switch_image = self.button_normal  # Убрано активное состояние
+            lang_switch_image = pygame.transform.scale(lang_switch_image,
+                                                       (self.lang_switch_rect.width, self.lang_switch_rect.height))
+            screen.blit(lang_switch_image, (self.lang_switch_rect.x, self.lang_switch_rect.y))
+            lang_switch_text_rect = lang_switch_text.get_rect(center=self.lang_switch_rect.center)
+            screen.blit(lang_switch_text, lang_switch_text_rect)
 
-            back_rect = pygame.Rect(screen_width // 2 - 50, 240, 100, 40)
-            pygame.draw.rect(screen, WHITE, back_rect)
-            back_text = self.font.render("Назад", True, BLACK)
-            screen.blit(back_text, back_text.get_rect(center=back_rect.center))
+            screen.blit(self.arrow_left, self.left_arrow_rect)
+            screen.blit(self.arrow_right, self.right_arrow_rect)
 
-    def handle_event(self, event, mx, my):
-        if event.type == pygame.MOUSEBUTTONDOWN:
+            music_rect = pygame.Rect(base_x, base_y + 2 * spacing, button_width, button_height)
+            screen.blit(self.button_normal, (music_rect.x, music_rect.y))
+            music_title = self.font.render(get_text("Music Volume", self.current_language), True, WHITE)
+            music_text_rect = music_title.get_rect(center=music_rect.center)
+            screen.blit(music_title, music_text_rect)
+            pygame.draw.rect(screen, GRAY, (self.music_slider_x, music_rect.y + (button_height - 10) // 2, self.slider_width, 10))
+            knob_x = self.music_slider_x + int(self.music_volume * self.slider_width)
+            pygame.draw.circle(screen, BLACK, (knob_x, music_rect.y + (button_height - 10) // 2 + 5), 8)
+
+
+            sound_rect = pygame.Rect(base_x, base_y + 3 * spacing, button_width, button_height)
+            screen.blit(self.button_normal, (sound_rect.x, sound_rect.y))
+            sound_title = self.font.render(get_text("Sound Volume", self.current_language), True, WHITE)
+            sound_text_rect = sound_title.get_rect(center=sound_rect.center)
+            screen.blit(sound_title, sound_text_rect)
+            pygame.draw.rect(screen, GRAY, (self.sound_slider_x, sound_rect.y + (button_height - 10) // 2, self.slider_width, 10))
+            knob_x = self.sound_slider_x + int(self.sound_volume * self.slider_width)
+            pygame.draw.circle(screen, BLACK, (knob_x, sound_rect.y + (button_height - 10) // 2 + 5), 8)
+
+
+    def handle_event(self, event, mx, my, screen):
+        self.update_rects(screen)  # Обновляем прямоугольники перед обработкой событий
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if not self.settings_open:
+                if self.close_rect and self.close_rect.collidepoint(mx, my):
+                    return "exit"
                 for i, option in enumerate(self.options):
-                    text_rect = self.font.render(option["text"], True, option["color"]).get_rect(
-                        center=(pygame.display.get_surface().get_width() // 2, 100 + i * 60)
-                    )
-                    if text_rect.collidepoint(mx, my) and option["color"] != GRAY:
+                    if self.option_rects[i].collidepoint(mx, my) and option["color"] != GRAY:
                         if option["action"] == "settings":
                             self.settings_open = True
                             return None
                         return option["action"]
             else:
-                ru_rect = pygame.Rect(pygame.display.get_surface().get_width() // 2 - 100, 180, 80, 40)
-                en_rect = pygame.Rect(pygame.display.get_surface().get_width() // 2 + 20, 180, 80, 40)
-                back_rect = pygame.Rect(pygame.display.get_surface().get_width() // 2 - 50, 240, 100, 40)
+                if self.back_rect and self.back_rect.collidepoint(mx, my):
+                    self.settings_open = False
+                    return None
+                if self.left_arrow_rect and self.left_arrow_rect.collidepoint(mx, my):
+                    self.current_language = "ru" if self.current_language == "en" else "en"
+                    has_saves = self.is_save_exists()
+                    self.options = [
+                        {"text": get_text("New Game", self.current_language), "image_normal": self.button_normal,
+                         "image_hover": self.button_hover, "color": WHITE, "action": "new_game"},
+                        {"text": get_text("Continue", self.current_language), "image_normal": self.button_normal,
+                         "image_hover": self.button_hover, "color": WHITE if has_saves else GRAY, "action": "continue"},
+                        {"text": get_text("Load", self.current_language), "image_normal": self.button_normal,
+                         "image_hover": self.button_hover, "color": WHITE if has_saves else GRAY, "action": "load"},
+                        {"text": get_text("Settings", self.current_language), "image_normal": self.button_normal,
+                         "image_hover": self.button_hover, "color": WHITE, "action": "settings"},
+                    ]
+                    return None
+                elif self.right_arrow_rect and self.right_arrow_rect.collidepoint(mx, my):
+                    self.current_language = "en" if self.current_language == "ru" else "ru"
+                    has_saves = self.is_save_exists()
+                    self.options = [
+                        {"text": get_text("New Game", self.current_language), "image_normal": self.button_normal,
+                         "image_hover": self.button_hover, "color": WHITE, "action": "new_game"},
+                        {"text": get_text("Continue", self.current_language), "image_normal": self.button_normal,
+                         "image_hover": self.button_hover, "color": WHITE if has_saves else GRAY, "action": "continue"},
+                        {"text": get_text("Load", self.current_language), "image_normal": self.button_normal,
+                         "image_hover": self.button_hover, "color": WHITE if has_saves else GRAY, "action": "load"},
+                        {"text": get_text("Settings", self.current_language), "image_normal": self.button_normal,
+                         "image_hover": self.button_hover, "color": WHITE, "action": "settings"},
+                    ]
+                    return None
+                if self.music_slider_rect.collidepoint(mx, my):
 
-                if ru_rect.collidepoint(mx, my):
-                    self.current_language = "ru"
-                    self.options = [
-                        {"text": get_text("New Game", "ru"), "color": WHITE, "action": "new_game"},
-                        {"text": get_text("Continue", "ru"), "color": GRAY if not self.is_save_exists() else WHITE,
-                         "action": "continue"},
-                        {"text": get_text("Settings", "ru"), "color": WHITE, "action": "settings"},
-                        {"text": get_text("Exit", "ru"), "color": WHITE, "action": "exit"}
-                    ]
-                    self.settings_open = False
-                    return None
-                elif en_rect.collidepoint(mx, my):
-                    self.current_language = "en"
-                    self.options = [
-                        {"text": get_text("New Game", "en"), "color": WHITE, "action": "new_game"},
-                        {"text": get_text("Continue", "en"), "color": GRAY if not self.is_save_exists() else WHITE,
-                         "action": "continue"},
-                        {"text": get_text("Settings", "en"), "color": WHITE, "action": "settings"},
-                        {"text": get_text("Exit", "en"), "color": WHITE, "action": "exit"}
-                    ]
-                    self.settings_open = False
-                    return None
-                elif back_rect.collidepoint(mx, my):
-                    self.settings_open = False
-                    return None
+                    self.dragging_music = True
+                elif self.sound_slider_rect.collidepoint(mx, my):
+
+                    self.dragging_sound = True
+
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            if self.dragging_music:
+                print("Music slider released, final volume:", self.music_volume)
+            if self.dragging_sound:
+                print("Sound slider released, final volume:", self.sound_volume)
+            self.dragging_music = False
+            self.dragging_sound = False
+
+        elif event.type == pygame.MOUSEMOTION:
+            if self.dragging_music:
+                new_volume = max(0.0, min(1.0, (mx - self.music_slider_x) / self.slider_width))
+                if new_volume != self.music_volume:  # Избегаем избыточных обновлений
+                    self.music_volume = new_volume
+                    pygame.mixer.music.set_volume(self.music_volume)
+
+            elif self.dragging_sound:
+                new_volume = max(0.0, min(1.0, (mx - self.sound_slider_x) / self.slider_width))
+                if new_volume != self.sound_volume:  # Избегаем избыточных обновлений
+                    self.sound_volume = new_volume
+
+
         return None
+
+# Оставляем остальные функции в ui.py без изменений
 
 
 # ui.py (фрагмент draw_wheel)

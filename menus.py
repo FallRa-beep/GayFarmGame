@@ -56,35 +56,78 @@ class WheelMenu:
             return
         screen_x = self.center_x - camera_x
         screen_y = self.center_y
-        pygame.draw.circle(screen, (211, 211, 211), (int(screen_x), int(screen_y)), self.radius, 2)
-        build_angle = 90
-        plant_angle = 270
+
+        # Загружаем изображение фона колеса
+        try:
+            wheel_background = images.GAME_IMAGES["wheel_background"]
+        except KeyError as e:
+            print(f"Ошибка: изображение фона колеса не найдено - {e}")
+            # Заглушка на случай, если изображение не загрузилось
+            wheel_background = pygame.Surface((self.radius * 2, self.radius * 2))
+            wheel_background.fill(GRAY)
+
+        # Определяем позицию для отображения фона (центрируем изображение)
+        wheel_rect = wheel_background.get_rect(center=(int(screen_x), int(screen_y)))
+        screen.blit(wheel_background, wheel_rect)
+
+        # Остальной код для иконок остаётся без изменений
+        build_angle = 0
+        plant_angle = 180
         build_endpoint = (screen_x + self.radius * math.cos(math.radians(build_angle)),
                           screen_y - self.radius * math.sin(math.radians(build_angle)))
         plant_endpoint = (screen_x + self.radius * math.cos(math.radians(plant_angle)),
                           screen_y - self.radius * math.sin(math.radians(plant_angle)))
-        build_text = self.font.render(get_text("Construction", self.language), True, (0, 0, 255))
-        plant_text = self.font.render(get_text("Planting", self.language), True, (0, 255, 0))
-        screen.blit(build_text, (build_endpoint[0] + 5, build_endpoint[1] - 10))
-        screen.blit(plant_text, (plant_endpoint[0] - plant_text.get_width() - 5, plant_endpoint[1] - 10))
+
+        try:
+            build_icon = images.GAME_IMAGES["construction_icon"]
+            plant_icon = images.GAME_IMAGES["planting_icon"]
+        except KeyError as e:
+            print(f"Ошибка: иконка не найдена - {e}")
+            build_icon = pygame.Surface((32, 32))
+            build_icon.fill((0, 0, 255))
+            plant_icon = pygame.Surface((32, 32))
+            plant_icon.fill((0, 255, 0))
+
+        # Отрисовка иконок
+        screen.blit(build_icon, (build_endpoint[0] + 5, build_endpoint[1] - build_icon.get_height() // 2))
+        screen.blit(plant_icon,
+                    (plant_endpoint[0] - plant_icon.get_width() - 5, plant_endpoint[1] - plant_icon.get_height() // 2))
 
 class SeedMenu:
-    def __init__(self, language, coins, level):
+    def __init__(self, language, coins, level=1):
         self.is_open = False
         self.language = language
         self.coins = coins
         self.level = level
-        self.selected_seed = None
-        self.planting = False
-        self.font = pygame.font.Font(None, 48)
-        self.tooltip_font = pygame.font.Font(None, 24)
+        self.current_seed = None
+        self.current_index = 0
+        self.font = pygame.font.Font(None, 36)
         self.small_font = pygame.font.Font(None, 24)
+        self.tooltip_font = pygame.font.Font(None, 18)
+        self.hovered_buttons = {}
+        self.error_message = None
+        self.error_timer = 0
+
+        # Формируем seed_options из SEEDS
+        self.seed_options = []
+        for seed in SEEDS:
+            if level >= seed["unlock_level"]:
+                translated_name = get_text(seed["name"].capitalize(), language)
+                self.seed_options.append({
+                    "name": translated_name,
+                    "original_name": seed["name"],  # Для загрузки изображения плода (например, "wheat" или "corn")
+                    "cost": seed["cost"],
+                    "ripening_time": seed["ripening_time_minutes"],
+                    "watering_interval": seed["watering_interval_minutes"],
+                    "sprout_time": seed["sprout_time_minutes"],
+                    "harvest_yield": seed["harvest_yield"],
+                    "unlock_level": seed["unlock_level"]
+                })
 
     def open(self):
         self.is_open = True
         self.planting = False
         self.selected_seed = None
-
 
     def close(self):
         self.is_open = False
@@ -147,12 +190,17 @@ class SeedMenu:
             return
         screen_width = screen.get_width()
         menu_width, menu_height = 200, SCREEN_HEIGHT
-        pygame.draw.rect(screen, (211, 211, 211), (screen_width - menu_width, 0, menu_width, menu_height))
-        pygame.draw.rect(screen, GRAY, (screen_width - menu_width, 0, menu_width, menu_height), 2)
-        close_rect = pygame.Rect(screen_width - 30, 10, 20, 20)
-        pygame.draw.rect(screen, (173, 216, 230), close_rect)
-        close_text = self.small_font.render("×", True, BLACK)
-        screen.blit(close_text, close_text.get_rect(center=close_rect.center))
+        # Загружаем изображение фона меню
+        try:
+            background_image = images.GAME_IMAGES["menu_background"]
+        except KeyError as e:
+            print(f"Ошибка: изображение фона меню строительства не найдено - {e}")
+            # Заглушка на случай, если изображение не загрузилось
+            background_image = pygame.Surface((menu_width, menu_height))
+            background_image.fill((200, 200, 200))
+
+        # Отрисовка фона
+        screen.blit(background_image, (screen_width-menu_width, 0))
 
         seeds_per_row = 2
         seed_width = 90
@@ -277,51 +325,38 @@ class BuildMenu:
         self.preview_build = None
         self.moving_object = None
         self.current_index = 0
-        self.font = pygame.font.Font(None, 36)  # Уменьшенный шрифт для названия
-        self.small_font = pygame.font.Font(None, 24)  # Шрифт для кнопок и текста
-        self.tooltip_font = pygame.font.Font(None, 18)  # Уменьшенный шрифт для подсказок
-        self.hovered_building = None  # Для отслеживания наведения на изображение
-        self.build_options = [
-            {
-                "text": get_text("Bed", language),
-                "cost_coins": BUILDING_CONFIG["bed"]["cost_coins"],
-                "unlock_level": BUILDING_CONFIG["bed"]["unlock_level"],
+        self.font = pygame.font.Font(None, 36)
+        self.small_font = pygame.font.Font(None, 24)
+        self.tooltip_font = pygame.font.Font(None, 18)
+        self.hovered_buttons = {}
+        self.error_message = None
+        self.error_timer = 0
+        # Динамическая генерация build_options из BUILDING_CONFIG
+        self.build_options = []
+        for building_key, building_data in BUILDING_CONFIG.items():
+            translated_text = get_text(building_key.capitalize(), language)  # Предполагаем, что ключи — это имена
+            cost_text = f"{get_text('Cost', language)}: {building_data['cost_coins']} {get_text('coins', language)}"
+            if "cost_harvest" in building_data:
+                cost_text += f" + {building_data['cost_harvest']} {get_text('Harvest', language)}"
+            if "cost_products" in building_data:
+                cost_text += f" + {building_data['cost_products']} {get_text('Products', language)}"
+            self.build_options.append({
+                "text": translated_text,
+                "cost_coins": building_data["cost_coins"],
+                "cost_harvest": building_data.get("cost_harvest", 0),
+                "cost_products": building_data.get("cost_products", 0),
+                "unlock_level": building_data["unlock_level"],
                 "action": "new",
-                "type": "functional",
-                "description": get_text("Simple bed for planting plants", language),
-                "cost_text": f"{get_text('Cost', language)}: {BUILDING_CONFIG['bed']['cost_coins']} {get_text('coins', language)}",
-                "consume": BUILDING_CONFIG["bed"]["consume"],
-                "produce": BUILDING_CONFIG["bed"]["produce"],
-                "work_time": BUILDING_CONFIG["bed"]["work_time"]
-            },
-            {
-                "text": get_text("Mill", language),
-                "cost_coins": BUILDING_CONFIG["mill"]["cost_coins"],
-                "cost_harvest": BUILDING_CONFIG["mill"]["cost_harvest"],
-                "unlock_level": BUILDING_CONFIG["mill"]["unlock_level"],
-                "action": "new",
-                "type": "functional",
-                "description": get_text("Converts 2 Harvest into 1 Product in 5 seconds", language),
-                "cost_text": f"{get_text('Cost', language)}: {BUILDING_CONFIG['mill']['cost_coins']} {get_text('coins', language)} + {BUILDING_CONFIG['mill']['cost_harvest']} {get_text('Harvest', language)}",
-                "consume": BUILDING_CONFIG["mill"]["consume"],
-                "produce": BUILDING_CONFIG["mill"]["produce"],
-                "work_time": BUILDING_CONFIG["mill"]["work_time"]
-            },
-            {
-                "text": get_text("Canning Cellar", language),
-                "cost_coins": BUILDING_CONFIG["canning_cellar"]["cost_coins"],
-                "cost_harvest": BUILDING_CONFIG["canning_cellar"]["cost_harvest"],
-                "cost_products": BUILDING_CONFIG["canning_cellar"]["cost_products"],
-                "unlock_level": BUILDING_CONFIG["canning_cellar"]["unlock_level"],
-                "action": "new",
-                "type": "functional",
-                "description": get_text("Converts 4 Harvest into 2 Products in 6 minutes", language),
-                "cost_text": f"{get_text('Cost', language)}: {BUILDING_CONFIG['canning_cellar']['cost_coins']} {get_text('coins', language)} + {BUILDING_CONFIG['canning_cellar']['cost_harvest']} {get_text('Harvest', language)} + {BUILDING_CONFIG['canning_cellar']['cost_products']} {get_text('Products', language)}",
-                "consume": BUILDING_CONFIG["canning_cellar"]["consume"],
-                "produce": BUILDING_CONFIG["canning_cellar"]["produce"],
-                "work_time": BUILDING_CONFIG["canning_cellar"]["work_time"]
-            }
-        ]
+                "type": building_data.get("type", "functional"),  # По умолчанию "functional", если не указано
+                "category": building_data["category"],
+                "description": get_text(f"{building_key}_description", language),
+                "cost_text": cost_text,
+                "consume": building_data.get("consume", {}),
+                "produce": building_data.get("produce", {}),
+                "work_time": building_data.get("work_time", 0)
+            })
+        # Фильтр по умолчанию (пока только "functional")
+        self.current_category = "functional"
 
     def open(self):
         self.is_open = True
@@ -355,20 +390,35 @@ class BuildMenu:
             build_rects = self.draw(pygame.display.get_surface(), harvest, products, return_rects=True)
             print(f"Mouse click at ({mx}, {my}), Rects: {build_rects.keys()}")
 
+            # Обработка кликов по кнопкам категорий
+            for category in ["functional", "decor", "roads"]:
+                if f"category_{category}" in build_rects and build_rects[f"category_{category}"].collidepoint(mx, my):
+                    self.current_category = category
+                    self.current_index = 0  # Сбрасываем индекс при смене категории
+                    available_options = [option for option in self.build_options if
+                                         self.level >= option["unlock_level"] and option[
+                                             "category"] == self.current_category]
+                    if not available_options:
+                        self.current_index = 0  # Устанавливаем индекс на 0, если опции пусты
+                    print(f"Switched to category: {category}")
+                    return None
+
             if build_rects["close"].collidepoint(mx, my):
                 self.close()
                 print("Closing BuildMenu")
                 return "close_build_menu"
             elif build_rects["left_arrow"].collidepoint(mx, my):
-                available_options = [i for i, option in enumerate(self.build_options) if self.level >= option["unlock_level"]]
+                available_options = [i for i, option in enumerate(self.build_options) if
+                                     self.level >= option["unlock_level"] and option[
+                                         "category"] == self.current_category]
                 if available_options:
                     self.current_index = (self.current_index - 1) % len(available_options)
-
             elif build_rects["right_arrow"].collidepoint(mx, my):
-                available_options = [i for i, option in enumerate(self.build_options) if self.level >= option["unlock_level"]]
+                available_options = [i for i, option in enumerate(self.build_options) if
+                                     self.level >= option["unlock_level"] and option[
+                                         "category"] == self.current_category]
                 if available_options:
                     self.current_index = (self.current_index + 1) % len(available_options)
-
             elif build_rects["move"].collidepoint(mx, my):
                 self.build_action = "move"
                 print("Set build_action to move")
@@ -378,7 +428,11 @@ class BuildMenu:
                 print("Set build_action to destroy")
                 return "set_destroy"
             elif build_rects["build_button"].collidepoint(mx, my):
-                available_options = [option for option in self.build_options if self.level >= option["unlock_level"]]
+                available_options = [option for option in self.build_options if
+                                     self.level >= option["unlock_level"] and option[
+                                         "category"] == self.current_category]
+                if not available_options:
+                    return None
                 option = available_options[self.current_index]
                 total_cost_coins = option["cost_coins"]
                 cost_harvest = option.get("cost_harvest", 0)
@@ -387,7 +441,7 @@ class BuildMenu:
                         ("cost_harvest" not in option or harvest >= cost_harvest) and
                         ("cost_products" not in option or products >= cost_products)):
                     if option["text"] == get_text("Bed", self.language):
-                        self.preview_build = Bed(0, 0)
+                        self.preview_build = Bed(0, 0, width=32, height=32)
                     elif option["text"] == get_text("Mill", self.language):
                         self.preview_build = Mill(0, 0)
                     elif option["text"] == get_text("Canning Cellar", self.language):
@@ -395,32 +449,37 @@ class BuildMenu:
                     self.build_action = "build_preview"
                     print(f"Starting build preview for {option['text']}")
                     return "start_build_preview"
+                else:
+                    self.error_message = get_text("Сладкий, мы не можем себе это позволить", self.language)
+                    self.error_timer = pygame.time.get_ticks()
+                    print(self.error_message)
             elif self.build_action == "build_preview" and self.preview_build:
-                    new_x = snap_to_grid(mx + camera_x, grid_size=32) - self.preview_build.width // 2
-                    new_y = snap_to_grid(my, grid_size=32) - self.preview_build.height // 2
-                    new_x = max(0, min(new_x, map_width - self.preview_build.width))
-                    new_y = max(0, min(new_y, SCREEN_HEIGHT - self.preview_build.height))
-                    self.preview_build.x = new_x
-                    self.preview_build.y = new_y
-                    if not check_collision(self.preview_build, objects, grid_size=32, allow_touching=True):
-                        objects.append(self.preview_build)
-                        available_options = [option for option in self.build_options if self.level >= option["unlock_level"]]
-                        option = available_options[self.current_index]
-                        cost = option["cost_coins"]
-                        harvest_cost = option.get("cost_harvest", 0)
-                        products_cost = option.get("cost_products", 0)
-                        print(f"Built {option['text']} at ({new_x}, {new_y}), added to objects list")
-                        self.preview_build = None
-                        self.build_action = None
-                        return {"action": "build", "cost_coins": cost, "cost_harvest": harvest_cost,
-                                "cost_products": products_cost}
+                mx, my = pygame.mouse.get_pos()
+                new_x = snap_to_grid(mx + camera_x, grid_size=32)
+                new_y = snap_to_grid(my, grid_size=32)
+                new_x = max(0, min(new_x, map_width - self.preview_build.width))
+                new_y = max(0, min(new_y, SCREEN_HEIGHT - self.preview_build.height))
+                self.preview_build.x = new_x
+                self.preview_build.y = new_y
+                if not check_collision(self.preview_build, objects, grid_size=32, allow_touching=True):
+                    objects.append(self.preview_build)
+                    available_options = [option for option in self.build_options if
+                                         self.level >= option["unlock_level"] and option[
+                                             "category"] == self.current_category]
+                    option = available_options[self.current_index]
+                    cost = option["cost_coins"]
+                    harvest_cost = option.get("cost_harvest", 0)
+                    products_cost = option.get("cost_products", 0)
+                    print(f"Built {option['text']} at ({new_x}, {new_y}), added to objects list")
+                    self.preview_build = None
+                    self.build_action = None
+                    return {"action": "build", "cost_coins": cost, "cost_harvest": harvest_cost,
+                            "cost_products": products_cost}
             elif self.build_action == "move" and self.moving_object is None:
                 ui_area = pygame.Rect(0, 0, 50, 50)
-
                 if not ui_area.collidepoint(mx, my):
                     for obj in objects:
                         obj_rect = pygame.Rect(obj.x - camera_x, obj.y, obj.width, obj.height)
-
                         if obj_rect.collidepoint(mx, my) and obj.movable:
                             self.moving_object = obj
                             if obj.obj_type == "bed":
@@ -438,8 +497,9 @@ class BuildMenu:
                             print(f"Selected object for move: {obj.obj_type} at ({obj.x}, {obj.y})")
                             return "start_move_preview"
             elif self.build_action == "move_preview" and self.moving_object and self.preview_build:
-                new_x = snap_to_grid(mx + camera_x, grid_size=32) - self.preview_build.width // 2
-                new_y = snap_to_grid(my, grid_size=32) - self.preview_build.height // 2
+                mx, my = pygame.mouse.get_pos()
+                new_x = snap_to_grid(mx + camera_x, grid_size=32)
+                new_y = snap_to_grid(my, grid_size=32)
                 new_x = max(0, min(new_x, map_width - self.preview_build.width))
                 new_y = max(0, min(new_y, SCREEN_HEIGHT - self.preview_build.height))
                 self.preview_build.x = new_x
@@ -466,6 +526,17 @@ class BuildMenu:
                         self.build_action = "destroy"
                         print("Destroy action completed, menu remains open")
                         return {"action": "destroy_complete", "destroyed_obj": destroyed_obj}
+        elif event.type == pygame.MOUSEMOTION:
+            if self.build_action in ["build_preview", "move_preview"] and self.preview_build:
+                mx, my = pygame.mouse.get_pos()
+                new_x = snap_to_grid(mx + camera_x, grid_size=32)
+                new_y = snap_to_grid(my, grid_size=32)
+                new_x = max(0, min(new_x, map_width - self.preview_build.width))
+                new_y = max(0, min(new_y, SCREEN_HEIGHT - self.preview_build.height))
+                self.preview_build.x = new_x
+                self.preview_build.y = new_y
+                print(f"Preview updated to ({new_x}, {new_y})")
+                return {"action": self.build_action, "preview_obj": self.preview_build}
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             mx, my = pygame.mouse.get_pos()
             menu_rect = pygame.Rect(screen_width - 240, 0, 240, SCREEN_HEIGHT)
@@ -479,134 +550,182 @@ class BuildMenu:
         if not self.is_open:
             return {} if return_rects else None
         screen_width = screen.get_width()
-        menu_width, menu_height = 280, SCREEN_HEIGHT
-        pygame.draw.rect(screen, (211, 211, 211), (screen_width - menu_width, 0, menu_width, menu_height))
-        pygame.draw.rect(screen, GRAY, (screen_width - menu_width, 0, menu_width, menu_height), 2)
+        menu_width, menu_height = 200, SCREEN_HEIGHT
 
-        # Кнопка закрытия
-        close_rect = pygame.Rect(screen_width - 30, 10, 20, 20)
-        pygame.draw.rect(screen, (173, 216, 230), close_rect)
-        close_text = self.small_font.render("×", True, BLACK)
-        screen.blit(close_text, close_text.get_rect(center=close_rect.center))
+        # Загружаем изображение фона меню
+        try:
+            background_image = images.GAME_IMAGES["menu_background"]
+        except KeyError as e:
+            print(f"Ошибка: изображение фона меню строительства не найдена - {e}")
+            background_image = pygame.Surface((menu_width, menu_height))
+            background_image.fill((200, 200, 200))
 
-        # Кнопки "Переместить" и "Уничтожить"
-        action_width = (menu_width - 30) // 2
-        move_rect = pygame.Rect(screen_width - menu_width + 15, 60, action_width, 40)
-        destroy_rect = pygame.Rect(screen_width - action_width - 15, 60, action_width, 40)
-        move_color = GREEN if self.build_action in ["move", "move_preview"] else (173, 216, 230) if self.coins >= 0 else GRAY
-        destroy_color = GREEN if self.build_action == "destroy" else (173, 216, 230) if self.coins >= 0 else GRAY
-        pygame.draw.rect(screen, move_color, move_rect)
-        pygame.draw.rect(screen, destroy_color, destroy_rect)
-        move_text = self.small_font.render(get_text("Move", self.language), True, BLACK)
-        destroy_text = self.small_font.render(get_text("Destroy", self.language), True, (255, 0, 0))
-        screen.blit(move_text, move_text.get_rect(center=move_rect.center))
-        screen.blit(destroy_text, destroy_text.get_rect(center=destroy_rect.center))
+        # Отрисовка фона
+        screen.blit(background_image, (screen_width - menu_width, 0))
+
+        # Получаем позицию мыши
+        mx, my = pygame.mouse.get_pos()
+
+        # Кнопки "Close", "Move" и "Destroy"
+        close_rect = pygame.Rect(screen_width - menu_width + menu_width - 32 - 10, 10, 32, 32)  # Справа, отступ 10
+        move_rect = pygame.Rect(screen_width - menu_width + 10, 10, 32, 32)  # Слева, отступ 10
+        destroy_rect = pygame.Rect(screen_width - menu_width + 10 + 32 + 10, 10, 32, 32)  # Справа от Move, отступ 10
+        close_image = images.GAME_IMAGES["return" if not close_rect.collidepoint(mx, my) else "return_hover"]
+        move_state = "move_active" if self.build_action in ["move",
+                                                            "move_preview"] else "move_hover" if move_rect.collidepoint(
+            mx, my) else "move_normal"
+        destroy_state = "destroy_active" if self.build_action == "destroy" else "destroy_hover" if destroy_rect.collidepoint(
+            mx, my) else "destroy_normal"
+        screen.blit(close_image, close_rect.topleft)
+        screen.blit(images.GAME_IMAGES[move_state], move_rect.topleft)
+        screen.blit(images.GAME_IMAGES[destroy_state], destroy_rect.topleft)
+        self.hovered_buttons["close"] = close_rect.collidepoint(mx, my)
+        self.hovered_buttons["move"] = move_rect.collidepoint(mx, my)
+        self.hovered_buttons["destroy"] = destroy_rect.collidepoint(mx, my)
+
+        # Кнопки категорий (на y=60, размер 32x32)
+        category_rects = {}
+        categories = ["functional", "decor", "roads"]
+        category_width = 32
+        category_height = 32
+        category_start_x = screen_width - menu_width + 15
+        for i, category in enumerate(categories):
+            rect = pygame.Rect(category_start_x + i * (category_width + 10), 60, category_width, category_height)
+            category_rects[category] = rect
+            color = GREEN if self.current_category == category else GRAY
+            pygame.draw.rect(screen, color, rect)
+            category_text = self.tooltip_font.render(category.capitalize(), True, BLACK)
+            screen.blit(category_text, category_text.get_rect(center=rect.center))
+            self.hovered_buttons[f"category_{category}"] = rect.collidepoint(mx, my)
 
         # Отрисовка текущей выбранной постройки
-        available_options = [option for option in self.build_options if self.level >= option["unlock_level"]]
-        if not available_options:
-            return {} if return_rects else None
-        current_option = available_options[self.current_index]
+        available_options = [option for option in self.build_options if
+                             self.level >= option["unlock_level"] and option["category"] == self.current_category]
+        current_option = available_options[self.current_index % len(available_options)] if available_options else None
 
-        # Зона изображения объекта
-        build_rect = pygame.Rect(screen_width - menu_width + 15, 120, menu_width - 30, 160)
-        pygame.draw.rect(screen, WHITE, build_rect, 2)
+        # Условие для отображения стрелок
+        show_arrows = len(available_options) > 1 if available_options else False
+
+        # Зона изображения объекта (уменьшаем высоту, чтобы поместить кнопку Build)
+        build_rect = pygame.Rect(screen_width - menu_width + 15, 120, menu_width - 30, 150)  # Уменьшаем высоту до 150
         image_zone_width = 64
         image_zone_height = 64
         image_zone_x = build_rect.x + (build_rect.width - image_zone_width) // 2
         image_zone_y = build_rect.y + 10
-        pygame.draw.rect(screen, (255, 255, 255), (image_zone_x, image_zone_y, image_zone_width, image_zone_height), 1)
 
-        if current_option["text"] == get_text("Bed", self.language):
-            build_image = images.GAME_IMAGES["bed_wet"]
-        elif current_option["text"] == get_text("Mill", self.language):
-            build_image = images.GAME_IMAGES["mill"]
-        elif current_option["text"] == get_text("Canning Cellar", self.language):
-            build_image = images.GAME_IMAGES.get("canning_cellar", images.GAME_IMAGES["mill"])
-        else:
-            build_image = pygame.Surface((image_zone_width, image_zone_height))
-            build_image.fill((255, 255, 255))
-        scale_factor = min(image_zone_width / build_image.get_width(), image_zone_height / build_image.get_height())
-        scaled_image = pygame.transform.scale(build_image, (int(build_image.get_width() * scale_factor), int(build_image.get_height() * scale_factor)))
-        screen.blit(scaled_image, (image_zone_x + (image_zone_width - scaled_image.get_width()) // 2, image_zone_y + (image_zone_height - scaled_image.get_height()) // 2))
+        if current_option:
+            if current_option["text"] == get_text("Bed", self.language):
+                build_image = images.GAME_IMAGES["bed_wet"]
+            elif current_option["text"] == get_text("Mill", self.language):
+                build_image = images.GAME_IMAGES["mill"]
+            elif current_option["text"] == get_text("Canning Cellar", self.language):
+                build_image = images.GAME_IMAGES.get("canning_cellar", images.GAME_IMAGES["mill"])
+            else:
+                build_image = pygame.Surface((image_zone_width, image_zone_height))
+                build_image.fill((255, 255, 255))
+            scale_factor = min(image_zone_width / build_image.get_width(), image_zone_height / build_image.get_height())
+            scaled_image = pygame.transform.scale(build_image, (
+            int(build_image.get_width() * scale_factor), int(build_image.get_height() * scale_factor)))
+            screen.blit(scaled_image, (image_zone_x + (image_zone_width - scaled_image.get_width()) // 2,
+                                       image_zone_y + (image_zone_height - scaled_image.get_height()) // 2))
 
-        # Название объекта
-        title_text = self.font.render(current_option["text"], True, BLACK)  # Уменьшенный шрифт
-        screen.blit(title_text, (build_rect.x + (build_rect.width - title_text.get_width()) // 2, image_zone_y + image_zone_height + 10))
+            # Название объекта
+            title_text = self.font.render(current_option["text"], True, BLACK)
+            screen.blit(title_text, (
+            build_rect.x + (build_rect.width - title_text.get_width()) // 2, image_zone_y + image_zone_height + 10))
 
-        # Стоимость
-        coin_image = images.GAME_IMAGES["coin_menu"]
-        harvest_image = pygame.transform.scale(images.GAME_IMAGES["harvest"], (16, 16))
-        product_image = pygame.transform.scale(images.GAME_IMAGES["product"], (16, 16))
-        cost_coins_text = self.tooltip_font.render(str(current_option["cost_coins"]), True, BLACK) if current_option["cost_coins"] > 0 else None
-        cost_harvest_text = self.tooltip_font.render(str(current_option["cost_harvest"]), True, BLACK) if "cost_harvest" in current_option and current_option["cost_harvest"] > 0 else None
-        cost_products_text = self.tooltip_font.render(str(current_option["cost_products"]), True, BLACK) if "cost_products" in current_option and current_option["cost_products"] > 0 else None
-        total_width = 0
-        items = []
-        if cost_coins_text:
-            total_width += coin_image.get_width() + cost_coins_text.get_width() + 5
-            items.append((coin_image, cost_coins_text))
-        if cost_harvest_text:
-            total_width += harvest_image.get_width() + cost_harvest_text.get_width() + 15
-            items.append((harvest_image, cost_harvest_text))
-        if cost_products_text:
-            total_width += product_image.get_width() + cost_products_text.get_width() + 15
-            items.append((product_image, cost_products_text))
-        x_pos = build_rect.x + (build_rect.width - total_width) // 2
-        y_pos = image_zone_y + image_zone_height + 40
-        for icon, number_text in items:
-            screen.blit(icon, (x_pos, y_pos))
-            if number_text:
-                screen.blit(number_text, (x_pos + icon.get_width() + 5, y_pos))
-            x_pos += icon.get_width() + number_text.get_width() + 15
+            # Стоимость
+            coin_image = images.GAME_IMAGES["coin_menu"]
+            harvest_image = pygame.transform.scale(images.GAME_IMAGES["harvest"], (16, 16))
+            product_image = pygame.transform.scale(images.GAME_IMAGES["product"], (16, 16))
+            cost_coins_text = self.tooltip_font.render(str(current_option["cost_coins"]), True, BLACK) if \
+            current_option["cost_coins"] > 0 else None
+            cost_harvest_text = self.tooltip_font.render(str(current_option["cost_harvest"]), True,
+                                                         BLACK) if "cost_harvest" in current_option and current_option[
+                "cost_harvest"] > 0 else None
+            cost_products_text = self.tooltip_font.render(str(current_option["cost_products"]), True,
+                                                          BLACK) if "cost_products" in current_option and \
+                                                                    current_option["cost_products"] > 0 else None
+            total_width = 0
+            items = []
+            if cost_coins_text:
+                total_width += coin_image.get_width() + cost_coins_text.get_width() + 5
+                items.append((coin_image, cost_coins_text))
+            if cost_harvest_text:
+                total_width += harvest_image.get_width() + cost_harvest_text.get_width() + 15
+                items.append((harvest_image, cost_harvest_text))
+            if cost_products_text:
+                total_width += product_image.get_width() + cost_products_text.get_width() + 15
+                items.append((product_image, cost_products_text))
+            x_pos = build_rect.x + (build_rect.width - total_width) // 2
+            y_pos = image_zone_y + image_zone_height + 40
+            for icon, number_text in items:
+                screen.blit(icon, (x_pos, y_pos))
+                if number_text:
+                    screen.blit(number_text, (x_pos + icon.get_width() + 5, y_pos))
+                x_pos += icon.get_width() + number_text.get_width() + 15
 
-        # Убрано статическое описание, добавлена всплывающая подсказка
-        # Проверяем наведение на изображение
-        image_rect = pygame.Rect(image_zone_x, image_zone_y, image_zone_width, image_zone_height)
-        mx, my = pygame.mouse.get_pos()
-        if image_rect.collidepoint(mx, my):
-            self.hovered_building = current_option
-        else:
-            self.hovered_building = None
+            # Статическое описание с переносом
+            description_lines = []
+            current_line = ""
+            for word in current_option["description"].split():
+                test_line = current_line + " " + word if current_line else word
+                if self.tooltip_font.size(test_line)[0] <= build_rect.width - 10:
+                    current_line = test_line
+                else:
+                    description_lines.append(current_line)
+                    current_line = word
+            if current_line:
+                description_lines.append(current_line)
+            for i, line in enumerate(description_lines):
+                description_text = self.tooltip_font.render(line, True, BLACK)
+                description_rect = description_text.get_rect(
+                    center=(build_rect.x + build_rect.width // 2, y_pos + 25 + i * 20))
+                screen.blit(description_text, description_rect)
 
-        if self.hovered_building:
-            tooltip_text = self.tooltip_font.render(self.hovered_building["description"], True, BLACK)
-            tooltip_rect = tooltip_text.get_rect()
-            tooltip_rect.x = mx + 15
-            tooltip_rect.y = my + 15
-            if tooltip_rect.right > screen_width:
-                tooltip_rect.x = mx - tooltip_rect.width - 15
-            if tooltip_rect.bottom > SCREEN_HEIGHT:
-                tooltip_rect.y = my - tooltip_rect.height - 15
-            pygame.draw.rect(screen, (255, 255, 200), (tooltip_rect.x - 5, tooltip_rect.y - 5, tooltip_rect.width + 10, tooltip_rect.height + 10))
-            pygame.draw.rect(screen, BLACK, (tooltip_rect.x - 5, tooltip_rect.y - 5, tooltip_rect.width + 10, tooltip_rect.height + 10), 1)
-            screen.blit(tooltip_text, tooltip_rect)
+            # Кнопка "Build" (фиксированная позиция внизу)
+            build_button_rect = pygame.Rect(build_rect.x + (build_rect.width - 100) // 2, SCREEN_HEIGHT - 60, 100, 40)
+            total_cost_coins = current_option["cost_coins"]
+            cost_harvest = current_option.get("cost_harvest", 0)
+            cost_products = current_option.get("cost_products", 0)
+            can_build = (self.coins >= total_cost_coins and
+                         ("cost_harvest" not in current_option or harvest >= cost_harvest) and
+                         ("cost_products" not in current_option or products >= cost_products))
+            build_state = "button_hover" if can_build and build_button_rect.collidepoint(mx, my) else "button_normal"
+            build_button_image = pygame.transform.scale(images.GAME_IMAGES[build_state], (100, 40))
+            screen.blit(build_button_image, (build_button_rect.x, build_button_rect.y))
+            build_text_color = GREEN if can_build and self.build_action == "build_preview" else WHITE if can_build and build_button_rect.collidepoint(
+                mx, my) else (128, 128, 128)
+            build_text = self.small_font.render(get_text("Build", self.language), True, build_text_color)
+            screen.blit(build_text, build_text.get_rect(center=build_button_rect.center))
+            self.hovered_buttons["build_button"] = build_button_rect.collidepoint(mx, my) and can_build
 
-        # Кнопка "Построить"
-        build_button_rect = pygame.Rect(build_rect.x + (build_rect.width - 100) // 2, build_rect.bottom + 20, 100, 40)
-        total_cost_coins = current_option["cost_coins"]
-        cost_harvest = current_option.get("cost_harvest", 0)
-        cost_products = current_option.get("cost_products", 0)
-        can_build = (self.coins >= total_cost_coins and
-                     ("cost_harvest" not in current_option or harvest >= cost_harvest) and
-                     ("cost_products" not in current_option or products >= cost_products))
-        pygame.draw.rect(screen, GREEN if can_build else GRAY, build_button_rect)
-        build_text = self.small_font.render(get_text("Build", self.language), True, WHITE)
-        screen.blit(build_text, build_text.get_rect(center=build_button_rect.center))
+        # Стрелки с одинаковыми отступами
+        left_arrow_rect = pygame.Rect(build_rect.x + 15, image_zone_y + (image_zone_height - 20) // 2, 20, 20)
+        right_arrow_rect = pygame.Rect(build_rect.right - 15 - 20, image_zone_y + (image_zone_height - 20) // 2, 20, 20)
+        if show_arrows:
+            screen.blit(images.GAME_IMAGES["arrow_left"], left_arrow_rect.topleft)
+            screen.blit(images.GAME_IMAGES["arrow_right"], right_arrow_rect.topleft)
+            self.hovered_buttons["left_arrow"] = left_arrow_rect.collidepoint(mx, my)
+            self.hovered_buttons["right_arrow"] = right_arrow_rect.collidepoint(mx, my)
 
-        # Стрелки для переключения объектов
-        left_arrow_rect = pygame.Rect(build_rect.x + 10, image_zone_y + (image_zone_height - 40) // 2, 40, 40)
-        right_arrow_rect = pygame.Rect(build_rect.right - 50, image_zone_y + (image_zone_height - 40) // 2, 40, 40)
-        pygame.draw.polygon(screen, WHITE, [(left_arrow_rect.x + 10, left_arrow_rect.centery),
-                                            (left_arrow_rect.x + 30, left_arrow_rect.centery - 10),
-                                            (left_arrow_rect.x + 30, left_arrow_rect.centery + 10)])
-        pygame.draw.polygon(screen, WHITE, [(right_arrow_rect.x + 30, right_arrow_rect.centery),
-                                            (right_arrow_rect.x + 10, right_arrow_rect.centery - 10),
-                                            (right_arrow_rect.x + 10, right_arrow_rect.centery + 10)])
+        # Отрисовка сообщения об ошибке
+        if self.error_message and pygame.time.get_ticks() - self.error_timer < 2000:
+            error_surface = self.small_font.render(self.error_message, True, (255, 0, 0))
+            error_rect = error_surface.get_rect(center=(build_rect.x + build_rect.width // 2, SCREEN_HEIGHT - 20))
+            screen.blit(error_surface, error_rect)
 
         if return_rects:
-            return {"close": close_rect, "move": move_rect, "destroy": destroy_rect, "build_button": build_button_rect,
-                    "left_arrow": left_arrow_rect, "right_arrow": right_arrow_rect}
+            rects = {
+                "close": close_rect,
+                "move": move_rect,
+                "destroy": destroy_rect,
+                "build_button": build_button_rect if current_option else pygame.Rect(0, 0, 0, 0),
+                "left_arrow": left_arrow_rect,
+                "right_arrow": right_arrow_rect
+            }
+            rects.update({f"category_{category}": rect for category, rect in category_rects.items()})
+            return rects
 
 
 class MarketMenu:

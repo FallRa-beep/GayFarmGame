@@ -2,6 +2,7 @@ import pygame
 from config import SCREEN_HEIGHT
 from menus import WheelMenu, SeedMenu, BuildMenu, MarketMenu
 from game_utils import snap_to_grid
+from entities import Bed
 
 def handle_input(player, objects, camera_x, screen_width, map_width, screen_height, game_context, coins, harvest,
                  harvest_count, level, products, event):
@@ -78,8 +79,19 @@ def handle_input(player, objects, camera_x, screen_width, map_width, screen_heig
             menu_manager.open_menu("wheel", world_x, world_y)
             return None
 
+    # Обрабатываем результат от menu_manager
     menu_result = menu_manager.handle_input(event, camera_x, screen_width, map_width, objects, harvest, products)
     if menu_result:
+        # Если это предварительный просмотр перемещения, выравниваем объект по сетке
+        if isinstance(menu_result, dict) and menu_result.get("action") == "start_move_preview":
+            moved_obj = menu_result.get("moved_obj")
+            if moved_obj and isinstance(moved_obj, Bed):  # Проверяем, что это грядка
+                grid_x = snap_to_grid(moved_obj.x, grid_size=32)
+                grid_y = snap_to_grid(moved_obj.y, grid_size=32)
+                moved_obj.x = grid_x
+                moved_obj.y = grid_y
+
+        # Обработка других действий (build, plant, sell)
         if isinstance(menu_result, dict) and menu_result.get("action") in ["build", "plant", "sell"]:
             if menu_result["action"] == "build":
                 cost_coins = menu_result.get("cost_coins", 0)

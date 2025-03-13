@@ -71,7 +71,7 @@ class MarketStall(MapObject):
         }
 
 class Bed(MapObject):
-    def __init__(self, x, y, width=64, height=64):
+    def __init__(self, x, y, width=32, height=32):
         super().__init__(x, y, width, height, BROWN, "bed")
         self.movable = True  # Грядку можно перемещать
         self.is_planted = False

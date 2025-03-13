@@ -10,6 +10,7 @@ from ui import Menu
 from save_load import load_game, save_game, list_saves
 from translations import get_text
 import images
+import random
 
 def load_menu_language():
     """Загружает язык меню из файла, если он существует, или возвращает 'en' по умолчанию."""
@@ -115,49 +116,96 @@ def show_save_dialog(screen, game_context, language):
                         confirmation_text = get_text("Save to", language) + f" {save_slot}?"
                         show_slot_selection = False  # Возвращаемся к основным кнопкам после выбора
 
-def show_load_dialog(screen, language):
-    """Показывает диалоговое окно для загрузки игры."""
+def show_load_dialog(screen, language, menu):
     font = pygame.font.Font(None, 36)
     small_font = pygame.font.Font(None, 24)
     clock = pygame.time.Clock()
 
     while True:
-        screen.fill((0, 0, 0))  # Черный фон для диалога
+        # Загружаем фон из images
+        background = images.GAME_IMAGES["background_menu"]
+        bg_width = background.get_width()
+        bg_height = background.get_height()
+        if bg_height != SCREEN_HEIGHT:
+            scale_factor = SCREEN_HEIGHT / bg_height
+            new_width = int(bg_width * scale_factor)
+            background = pygame.transform.scale(background, (new_width, SCREEN_HEIGHT))
+            bg_width = new_width
+        if bg_width < screen.get_width():
+            scaled_background = pygame.transform.scale(background, (screen.get_width(), SCREEN_HEIGHT))
+            screen.blit(scaled_background, (0, 0))
+        else:
+            clip_x = (bg_width - screen.get_width()) // 2
+            clip_width = screen.get_width()
+            clipped_background = pygame.Surface((clip_width, SCREEN_HEIGHT))
+            clipped_background.blit(background, (0, 0), (clip_x, 0, clip_width, SCREEN_HEIGHT))
+            screen.blit(clipped_background, (0, 0))
+
         mx, my = pygame.mouse.get_pos()
 
-        # Текст запроса
+        # Текст запроса на уровне текста "New Game" из главного меню
+        button_width = 340  # Ширина кнопок
         text = font.render(get_text("Select a save to load:", language), True, WHITE)
-        text_rect = text.get_rect(center=(screen.get_width() // 2, 50))
+        text_x = screen.get_width() * 2 //3 + button_width // 2-70  # Центр группы кнопок
+        text_rect = text.get_rect(center=(text_x, 50))  # На уровне "New Game"
         screen.blit(text, text_rect)
 
-        # Кнопка "Cancel" (всегда отображается)
-        cancel_button = {"text": get_text("Cancel", language), "rect": None}
-        cancel_button["rect"] = pygame.Rect((screen.get_width() - 100) // 2, 150, 100, 50)  # Центрируем кнопку
+        # Кнопка возврата (в правом верхнем углу)
+        back_button = images.GAME_IMAGES.get("return")
+        back_hover = images.GAME_IMAGES.get("return_hover")
+        if not back_button:
+            print("Warning: Back button image not loaded!")
+            back_button = pygame.Surface((32, 32))  # Заглушка
+            back_button.fill(GRAY)
+        if not back_hover:
+            print("Warning: Back hover image not loaded!")
+            back_hover = back_button
+        back_x = screen.get_width() - 32 - 10
+        back_y = 10
+        back_rect = pygame.Rect(back_x, back_y, 32, 32)
+        back_image = back_hover if back_rect.collidepoint(mx, my) else back_button
+        screen.blit(back_image, (back_x, back_y))
 
-        # Список слотов для загрузки (всегда отображаем 3 слота)
+        # Список слотов для загрузки
         save_slots = list_saves()
         slot_buttons = []
-        y_offset = 250
-        max_slots = 3  # Ограничиваем до 3 слотов
+        y_offset = 80  # Начинаем ниже текста
+        max_slots = 3
+        button_width, button_height = 340, 80  # Размер кнопок
+        button_x = screen.get_width() * 2 // 3  # Расположение на 2/3 ширины
         for i in range(max_slots):
-            slot_name = f"Slot {i+1} (Empty)"  # По умолчанию пустой слот
+            slot_name = "Empty"
             if i < len(save_slots):
-                slot_name = f"Slot {i+1} - {time.strftime('%Y-%m-%d %H:%M', time.localtime(save_slots[i]['timestamp']))}"
-                slot_name += f" | Coins: {save_slots[i]['data'].get('coins', 0)}, Harvest: {save_slots[i]['data'].get('harvest', 0)}, Products: {save_slots[i]['data'].get('products', 0)}"
-            rect = pygame.Rect((screen.get_width() - 340) // 2, y_offset + i * 60, 340, 50)  # Центрируем слоты
+                slot_name = time.strftime('%Y-%m-%d %H:%M', time.localtime(save_slots[i]['timestamp']))
+            rect = pygame.Rect(button_x, y_offset + i * 90, button_width, button_height)  # Интервал 90
             slot_buttons.append({"text": slot_name, "rect": rect, "action": "load", "slot": save_slots[i]["filename"] if i < len(save_slots) else None})
 
-        # Отображаем кнопку "Cancel"
-        pygame.draw.rect(screen, GRAY if cancel_button["rect"].collidepoint(mx, my) else WHITE, cancel_button["rect"])
-        text_surf = small_font.render(cancel_button["text"], True, BLACK)
-        screen.blit(text_surf, (cancel_button["rect"].x + 10, cancel_button["rect"].y + 10))
-
-        # Отображаем слоты
+        # Рисуем кнопки слотов с фоном и иконками ресурсов
         for slot_button in slot_buttons:
             if slot_button["slot"]:  # Отображаем только слоты с файлами
-                pygame.draw.rect(screen, GRAY if slot_button["rect"].collidepoint(mx, my) else WHITE, slot_button["rect"])
-                text_surf = small_font.render(slot_button["text"], True, BLACK)
-                screen.blit(text_surf, (slot_button["rect"].x + 10, slot_button["rect"].y + 10))
+                # Переключение на button_hover при наведении
+                button_image = menu.button_hover if slot_button["rect"].collidepoint(mx, my) else menu.button_normal
+                screen.blit(button_image, (slot_button["rect"].x, slot_button["rect"].y))  # Фоновое изображение
+                # Текст даты, начинается слева
+                date_text = small_font.render(slot_button["text"], True, BLACK)
+                date_text_rect = date_text.get_rect(topleft=(slot_button["rect"].x + 20, slot_button["rect"].y + 10))  # Слева с отступом
+                screen.blit(date_text, date_text_rect)
+                # Иконки ресурсов (под датой), 16x16, с расстоянием, внутри кнопки
+                data = save_slots[slot_buttons.index(slot_button)]["data"]
+                coin_icon = pygame.transform.scale(images.GAME_IMAGES["coin_main"], (16, 16))
+                harvest_icon = pygame.transform.scale(images.GAME_IMAGES["harvest"], (16, 16))
+                product_icon = pygame.transform.scale(images.GAME_IMAGES["product"], (16, 16))
+                resource_y = slot_button["rect"].y + 30  # Вторая строка под датой
+                coin_x = slot_button["rect"].x + 15  # Начало слева
+                screen.blit(coin_icon, (coin_x, resource_y))
+                coin_value = small_font.render(str(data.get("coins", 0)), True, BLACK)
+                screen.blit(coin_value, (coin_x + 20, resource_y))
+                screen.blit(harvest_icon, (coin_x + 60, resource_y))
+                harvest_value = small_font.render(str(data.get("harvest", 0)), True, BLACK)
+                screen.blit(harvest_value, (coin_x + 80, resource_y))
+                screen.blit(product_icon, (coin_x + 120, resource_y))
+                product_value = small_font.render(str(data.get("products", 0)), True, BLACK)
+                screen.blit(product_value, (coin_x + 140, resource_y))
 
         pygame.display.flip()
         clock.tick(60)
@@ -166,16 +214,50 @@ def show_load_dialog(screen, language):
             if event.type == pygame.QUIT:
                 return None
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if cancel_button["rect"].collidepoint(mx, my):
-                    return None
-                for slot_button in slot_buttons:
-                    if slot_button["rect"].collidepoint(mx, my) and slot_button["slot"]:
-                        loaded_data = load_game(screen, slot_button["slot"])
-                        if loaded_data:
-                            return loaded_data
+                if event.button == 1:  # Только левый клик
+                    if back_rect.collidepoint(mx, my):
+                        return None
+                    for slot_button in slot_buttons:
+                        if slot_button["rect"].collidepoint(mx, my) and slot_button["slot"]:
+                            loaded_data = load_game(screen, slot_button["slot"])
+                            if loaded_data:
+                                return loaded_data
+
+def load_music_tracks():
+    """Загружает все музыкальные файлы из папки music/background."""
+    # Убедимся, что Pygame инициализирован
+    if not pygame.mixer.get_init():
+        pygame.mixer.init()
+
+    music_dir = os.path.join("music", "background")
+    if not os.path.exists(music_dir):
+        os.makedirs(music_dir)
+        print(f"Создана папка {music_dir}. Добавьте туда музыкальные файлы (.mp3 или .ogg).")
+        return []
+
+    tracks = [os.path.join(music_dir, f) for f in os.listdir(music_dir)
+              if f.endswith(('.mp3', '.ogg'))]
+    if not tracks:
+        print(f"В папке {music_dir} нет музыкальных файлов (.mp3 или .ogg).")
+    else:
+        print(f"Загружено {len(tracks)} музыкальных треков: {tracks}")
+    return tracks
+
+
+def play_next_track(tracks):
+    """Воспроизводит следующий случайный трек из списка."""
+    if not tracks:
+        print("Нет треков для воспроизведения.")
+        return
+    next_track = random.choice(tracks)  # Случайный выбор трека
+    pygame.mixer.music.load(next_track)
+    pygame.mixer.music.set_volume(0.5)  # Устанавливаем громкость по умолчанию
+    pygame.mixer.music.play()
+    print(f"Воспроизводится трек: {next_track}")
 
 def main():
     pygame.init()
+    pygame.mixer.init()  # Инициализируем микшер для звука
 
     # Получаем информацию об экране и создаём окно без рамки
     info = pygame.display.Info()
@@ -197,28 +279,99 @@ def main():
     images.GAME_IMAGES = images.load_game_images()
     print(f"GAME_IMAGES keys after loading: {list(images.GAME_IMAGES.keys())}")
 
-    # Загружаем язык меню (независимо от игры)
+    # Загружаем язык меню
     menu_language = load_menu_language()
-    # Загружаем сохранённые данные игры для определения языка игры
     saved_data = load_game(screen)
     game_language = "ru" if saved_data and saved_data[-2] == "ru" else "en" if saved_data else "en"
 
-    # Создаём меню с языком меню (независимым от языка игры)
+    # Создаём меню
     menu = Menu()
-    menu.current_language = menu_language  # Язык меню
+    menu.current_language = menu_language
     update_menu_options(menu)
+
+    # Загружаем треки
+    music_tracks = load_music_tracks()
+
+    # Определяем пользовательское событие для окончания музыки
+    MUSIC_END = pygame.USEREVENT + 1
+    pygame.mixer.music.set_endevent(MUSIC_END)
+
+    # Запускаем первый трек, если список не пустой
+    if music_tracks:
+        play_next_track(music_tracks)  # Убрали current_track_index
+    else:
+        print("Не удалось запустить музыку: список треков пуст.")
+
+    # Загружаем громкость из файла настроек, если он есть
+    settings_file = "settings.json"
+    if os.path.exists(settings_file):
+        with open(settings_file, "r", encoding="utf-8") as f:
+            settings = json.load(f)
+            pygame.mixer.music.set_volume(settings.get("music_volume", 0.5))
+            menu.music_volume = settings.get("music_volume", 0.5)
+            menu.sound_volume = settings.get("sound_volume", 0.5)  # Для будущих звуков
+    else:
+        pygame.mixer.music.set_volume(0.5)  # Значение по умолчанию
+        menu.music_volume = 0.5
+        menu.sound_volume = 0.5
 
     running = True
     while running:
+        # Обновляем координаты мыши перед обработкой событий
+        mx, my = pygame.mouse.get_pos()
+
+        # Обрабатываем все события
         for event in pygame.event.get():
+
+
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                 running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                mx, my = pygame.mouse.get_pos()
-                action = menu.handle_event(event, mx, my)
-                if action == "new_game":
-                    loop_result = game_loop(screen, language=game_language)
-                    while True:  # Цикл для обработки возврата из диалога
+            elif event.type == MUSIC_END:  # Когда текущий трек заканчивается
+                play_next_track(music_tracks)
+            # Передаём ВСЕ события в handle_event, включая MOUSEMOTION
+            action = menu.handle_event(event, mx, my, screen)
+            if action == "new_game":
+                loop_result = game_loop(screen, language=game_language)
+                while True:
+                    if isinstance(loop_result, tuple):
+                        result, game_context = loop_result
+                    else:
+                        result, game_context = loop_result, None
+                    if result in ["exit", "main_menu"]:
+                        if result == "main_menu" and game_context:
+                            dialog_result = show_save_dialog(screen, game_context, game_language)
+                            if dialog_result == "main_menu":
+                                update_menu_options(menu)
+                                break
+                            elif dialog_result == "exit":
+                                running = False
+                                break
+                            elif dialog_result is None:
+                                loop_result = game_loop(screen,
+                                                        game_context["player"],
+                                                        game_context["house"],
+                                                        game_context["objects"],
+                                                        game_context["camera_x"],
+                                                        game_context["harvest_count"],
+                                                        game_context["level"],
+                                                        game_context["coins"],
+                                                        game_context["harvest"],
+                                                        game_context["products"],
+                                                        game_language,
+                                                        game_context["map_tiles"])
+                                continue
+                        elif result == "exit":
+                            running = False
+                            break
+                    break
+            elif action == "continue":
+                loaded_data = show_load_dialog(screen, menu.current_language, menu)
+                if loaded_data:
+                    player, house, objects, camera_x, harvest_count, level, coins, harvest, products, game_language, map_tiles = loaded_data
+                    game_language = menu.current_language
+                    loop_result = game_loop(screen, player, house, objects, camera_x, harvest_count, level, coins,
+                                            harvest, products, game_language, map_tiles)
+                    while True:
                         if isinstance(loop_result, tuple):
                             result, game_context = loop_result
                         else:
@@ -227,12 +380,12 @@ def main():
                             if result == "main_menu" and game_context:
                                 dialog_result = show_save_dialog(screen, game_context, game_language)
                                 if dialog_result == "main_menu":
-                                    update_menu_options(menu)  # Обновляем меню после возврата
+                                    update_menu_options(menu)
                                     break
                                 elif dialog_result == "exit":
                                     running = False
                                     break
-                                elif dialog_result is None:  # При "Cancel" продолжаем игру
+                                elif dialog_result is None:
                                     loop_result = game_loop(screen,
                                                             game_context["player"],
                                                             game_context["house"],
@@ -245,110 +398,71 @@ def main():
                                                             game_context["products"],
                                                             game_language,
                                                             game_context["map_tiles"])
-                                    continue  # Продолжаем цикл
+                                    continue
                             elif result == "exit":
                                 running = False
                                 break
-                        break  # Выходим из цикла, если нет повторного диалога
-                elif action == "continue":
-                    loaded_data = load_game(screen)  # Загружает последнее сохранение
-                    if loaded_data:
-                        player, house, objects, camera_x, harvest_count, level, coins, harvest, products, game_language, map_tiles = loaded_data
-                        game_language = menu.current_language
-                        loop_result = game_loop(screen, player, house, objects, camera_x, harvest_count, level, coins,
-                                                harvest, products, game_language, map_tiles)
-                        while True:  # Цикл для обработки возврата из диалога
-                            if isinstance(loop_result, tuple):
-                                result, game_context = loop_result
-                            else:
-                                result, game_context = loop_result, None
-                            if result in ["exit", "main_menu"]:
-                                if result == "main_menu" and game_context:
-                                    dialog_result = show_save_dialog(screen, game_context, game_language)
-                                    if dialog_result == "main_menu":
-                                        update_menu_options(menu)  # Обновляем меню после возврата
-                                        break
-                                    elif dialog_result == "exit":
-                                        running = False
-                                        break
-                                    elif dialog_result is None:  # При "Cancel" продолжаем игру
-                                        loop_result = game_loop(screen,
-                                                                player,
-                                                                house,
-                                                                objects,
-                                                                camera_x,
-                                                                harvest_count,
-                                                                level,
-                                                                coins,
-                                                                harvest,
-                                                                products,
-                                                                game_language,
-                                                                map_tiles)
-                                        continue  # Продолжаем цикл
-                                elif result == "exit":
+                        break
+            elif action == "load":
+                loaded_data = show_load_dialog(screen, menu.current_language, menu)
+                if loaded_data:
+                    player, house, objects, camera_x, harvest_count, level, coins, harvest, products, game_language, map_tiles = loaded_data
+                    game_language = menu.current_language
+                    loop_result = game_loop(screen, player, house, objects, camera_x, harvest_count, level, coins,
+                                            harvest, products, game_language, map_tiles)
+                    while True:
+                        if isinstance(loop_result, tuple):
+                            result, game_context = loop_result
+                        else:
+                            result, game_context = loop_result, None
+                        if result in ["exit", "main_menu"]:
+                            if result == "main_menu" and game_context:
+                                dialog_result = show_save_dialog(screen, game_context, game_language)
+                                if dialog_result == "main_menu":
+                                    update_menu_options(menu)
+                                    break
+                                elif dialog_result == "exit":
                                     running = False
                                     break
-                            break  # Выходим из цикла, если нет повторного диалога
-                    else:
-                        print("Нет сохранённой игры для продолжения!")
-                elif action == "load":
-                    loaded_data = show_load_dialog(screen, menu.current_language)
-                    if loaded_data:
-                        player, house, objects, camera_x, harvest_count, level, coins, harvest, products, game_language, map_tiles = loaded_data
-                        game_language = menu.current_language
-                        loop_result = game_loop(screen, player, house, objects, camera_x, harvest_count, level, coins,
-                                                harvest, products, game_language, map_tiles)
-                        while True:  # Цикл для обработки возврата из диалога
-                            if isinstance(loop_result, tuple):
-                                result, game_context = loop_result
-                            else:
-                                result, game_context = loop_result, None
-                            if result in ["exit", "main_menu"]:
-                                if result == "main_menu" and game_context:
-                                    dialog_result = show_save_dialog(screen, game_context, game_language)
-                                    if dialog_result == "main_menu":
-                                        update_menu_options(menu)  # Обновляем меню после возврата
-                                        break
-                                    elif dialog_result == "exit":
-                                        running = False
-                                        break
-                                    elif dialog_result is None:  # При "Cancel" продолжаем игру
-                                        loop_result = game_loop(screen,
-                                                                player,
-                                                                house,
-                                                                objects,
-                                                                camera_x,
-                                                                harvest_count,
-                                                                level,
-                                                                coins,
-                                                                harvest,
-                                                                products,
-                                                                game_language,
-                                                                map_tiles)
-                                        continue  # Продолжаем цикл
-                                elif result == "exit":
-                                    running = False
-                                    break
-                            break  # Выходим из цикла, если нет повторного диалога
-                elif action == "exit":
-                    running = False
-                elif action == "settings":
-                    update_menu_options(menu)
+                                elif dialog_result is None:
+                                    loop_result = game_loop(screen,
+                                                            game_context["player"],
+                                                            game_context["house"],
+                                                            game_context["objects"],
+                                                            game_context["camera_x"],
+                                                            game_context["harvest_count"],
+                                                            game_context["level"],
+                                                            game_context["coins"],
+                                                            game_context["harvest"],
+                                                            game_context["products"],
+                                                            game_language,
+                                                            game_context["map_tiles"])
+                                    continue
+                            elif result == "exit":
+                                running = False
+                                break
+                        break
+            elif action == "exit":
+                running = False
+            elif action == "settings":
+                update_menu_options(menu)
 
+        # Отрисовка меню и обновление экрана
         menu.draw(screen)
         pygame.display.flip()
         clock.tick(60)
+
 
     pygame.quit()
 
 def update_menu_options(menu):
     """Обновляет опции меню, проверяя наличие сохранённой игры и язык меню."""
+    has_saves = Menu.is_save_exists()
     menu.options = [
-        {"text": get_text("New Game", menu.current_language), "color": WHITE, "action": "new_game"},
-        {"text": get_text("Continue", menu.current_language), "color": WHITE if Menu.is_save_exists() else GRAY, "action": "continue"},
-        {"text": get_text("Load", menu.current_language), "color": WHITE, "action": "load"},
-        {"text": get_text("Settings", menu.current_language), "color": WHITE, "action": "settings"},
-        {"text": get_text("Exit", menu.current_language), "color": WHITE, "action": "exit"}
+        {"text": get_text("New Game", menu.current_language), "image_normal": menu.button_normal, "image_hover": menu.button_hover, "color": WHITE, "action": "new_game"},
+        {"text": get_text("Continue", menu.current_language), "image_normal": menu.button_normal, "image_hover": menu.button_hover, "color": WHITE if has_saves else GRAY, "action": "continue"},
+        {"text": get_text("Load", menu.current_language), "image_normal": menu.button_normal, "image_hover": menu.button_hover, "color": WHITE if has_saves else GRAY, "action": "load"},
+        {"text": get_text("Settings", menu.current_language), "image_normal": menu.button_normal, "image_hover": menu.button_hover, "color": WHITE, "action": "settings"},
     ]
     print(f"Menu options updated: {menu.options}")
 

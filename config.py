@@ -18,27 +18,39 @@ LEVEL_THRESHOLDS = {1: 5, 2: 10, 3: 20, 4: 40}
 
 BUILDING_CONFIG = {
     "bed": {
-        "cost_coins": 10,  # Стоимость в монетах
-        "unlock_level": 1,  # Уровень, на котором здание становится доступным
-        "consume": {},  # Потребляемые ресурсы (пусто для грядки)
-        "produce": {},  # Производимые ресурсы (пусто для грядки)
-        "work_time": 0  # Время работы (0, так как грядка не требует работы)
+        "cost_coins": 10,
+        "unlock_level": 1,
+        "category": "functional",  # Категория
+        "consume": {},
+        "produce": {},
+        "work_time": 0
     },
     "mill": {
-        "cost_coins": 25,  # Стоимость в монетах
-        "cost_harvest": 1,  # Потребление Harvest для постройки
-        "unlock_level": 2,  # Уровень открытия
-        "consume": {"harvest": 2},  # Потребляет 2 Harvest за цикл
-        "produce": {"products": 1},  # Производит 1 Product за цикл
-        "work_time": 5000  # Время работы (5 секунд для обработки)
+        "cost_coins": 25,
+        "cost_harvest": 1,
+        "unlock_level": 2,
+        "category": "functional",
+        "consume": {"harvest": 2},
+        "produce": {"products": 1},
+        "work_time": 5000
     },
     "canning_cellar": {
-        "cost_coins": 30,  # Стоимость в монетах
-        "cost_harvest": 1,  # Потребление 1 Harvest для постройки
-        "cost_products": 1,  # Потребление 1 Product для постройки
-        "unlock_level": 2,  # Уровень открытия
-        "consume": {"harvest": 4},  # Потребляет 4 Harvest за цикл
-        "produce": {"products": 2},  # Производит 2 Products за цикл
-        "work_time": 60000  # Время работы (6 минут = 360000 мс)
+        "cost_coins": 30,
+        "cost_harvest": 1,
+        "cost_products": 1,
+        "unlock_level": 2,
+        "category": "functional",
+        "consume": {"harvest": 4},
+        "produce": {"products": 2},
+        "work_time": 60000
+    },
+    # Пример декора (можно добавить позже)
+    "fence": {
+        "cost_coins": 5,
+        "unlock_level": 1,
+        "category": "decor",
+        "consume": {},
+        "produce": {},
+        "work_time": 0
     }
 }

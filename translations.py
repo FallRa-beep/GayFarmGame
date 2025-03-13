@@ -47,7 +47,7 @@ TRANSLATIONS = {
         "Move": "Move",
         "Destroy": "Destroy",
         "Bed": "Bed",
-        "Simple bed for planting plants": "Simple bed for planting plants",
+        "bed_description": "Simple bed for planting plants",
         "Cost: 10 coins": "Cost: 10 coins",
         "min": "min",
         "Planted": "Planted",
@@ -61,8 +61,14 @@ TRANSLATIONS = {
         "Mill": "Mill",
         "Converts 2 Harvest into 1 Product in 5 seconds": "Converts 2 Harvest into 1 Product in 5 seconds",
         "Cost: 25 coins + 1 Harvest": "Cost: 25 coins + 1 Harvest",
-        "Canning Cellar": "Canning Cellar",  # Добавляем перевод для Canning Cellar
-        "Harvest Yield": "Harvest Yield"  # Добавляем перевод для Harvest Yield
+        "Canning Cellar": "Cellar",
+        "Harvest Yield": "Harvest Yield",
+        "Load": "Load",
+        "Build": "Build",
+        "Твой путь к вершине — горячий и страстный подъем к успеху!":"Your path to the top. A hot and passionate climb to success!",
+        "Вкусные деликатесы, чтобы соблазнить любого!": "Tasty delicacies to seduce anyone!",
+        "Сочные плоды твоих трудов — сладость, которую хочется попробовать...": "The juicy fruits of your labor — a sweetness you can't resist...",
+        "Золотые искры, которые заставляют сердца биться чаще!": "Golden sparks that make hearts beat faster!",
     },
     "ru": {
         "New Game": "Новая игра",
@@ -111,7 +117,7 @@ TRANSLATIONS = {
         "Move": "Переместить",
         "Destroy": "×",
         "Bed": "Грядка",
-        "Simple bed for planting plants": "Простая грядка для посадки растений",
+        "bed_description": "Простая грядка для посадки растений",
         "Cost: 10 coins": "Стоимость: 10 монет",
         "min": "мин",
         "Planted": "Посажено",
@@ -126,7 +132,13 @@ TRANSLATIONS = {
         "Converts 2 Harvest into 1 Product in 5 seconds": "Преобразует 2 Урожая в 1 Продукт за 5 секунд",
         "Cost: 25 coins + 1 Harvest": "Стоимость: 25 монет + 1 Урожай",
         "Canning Cellar": "Погреб",  # Добавляем перевод для Canning Cellar
-        "Harvest Yield": "Получаемый урожай"  # Добавляем перевод для Harvest Yield
+        "Harvest Yield": "Получаемый урожай",
+        "Load": "Загрузка", # Добавляем перевод для Harvest Yield
+        "Build": "Построить",
+        "Твой путь к вершине — горячий и страстный подъем к успеху!":"Твой путь к вершине — горячий и страстный подъем к успеху!",
+        "Вкусные деликатесы, чтобы соблазнить любого!": "Вкусные деликатесы, чтобы соблазнить любого!!",
+        "Сочные плоды твоих трудов — сладость, которую хочется попробовать...": "Сочные плоды твоих трудов — сладость, которую хочется попробовать...",
+        "Золотые искры, которые заставляют сердца биться чаще!": "Золотые искры, которые заставляют сердца биться чаще!",
     }
 }
 
