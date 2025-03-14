@@ -1,9 +1,11 @@
 import pygame
 import math
 from translations import get_text
-from config import SCREEN_HEIGHT, SEEDS, BLACK, WHITE, GRAY, GREEN, BUILDING_CONFIG
+from config import SCREEN_HEIGHT, SEEDS, BLACK, WHITE, GRAY, GREEN, BUILDING_CONFIG, YELLOW
 import images
 from entities import Bed, MapObject, Mill, CanningCellar, MarketStall
+from notifications import NotificationManager
+
 
 class WheelMenu:
     def __init__(self, language):
@@ -18,16 +20,16 @@ class WheelMenu:
         self.is_open = True
         self.center_x = x
         self.center_y = y
-        print(f"WheelMenu open at ({x}, {y}) with language: {self.language}")
+
 
     def close(self):
         self.is_open = False
-        print("WheelMenu closed")
+
 
     def handle_input(self, event, camera_x):
         if not self.is_open:
             return None
-        print(f"WheelMenu handling event: {event}, language: {self.language}")
+
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mx, my = pygame.mouse.get_pos()
             click_world_x = mx + camera_x
@@ -45,7 +47,7 @@ class WheelMenu:
             screen_x = self.center_x - camera_x
             screen_y = self.center_y
             wheel_rect = pygame.Rect(screen_x - self.radius, screen_y - self.radius, 2 * self.radius, 2 * self.radius)
-            print(f"WheelMenu right click at ({mx}, {my}), wheel_rect: {wheel_rect}, collide: {wheel_rect.collidepoint(mx, my)}, language: {self.language}")
+
             if not wheel_rect.collidepoint(mx, my):
                 self.close()
                 return None
@@ -61,7 +63,7 @@ class WheelMenu:
         try:
             wheel_background = images.GAME_IMAGES["wheel_background"]
         except KeyError as e:
-            print(f"Ошибка: изображение фона колеса не найдено - {e}")
+
             # Заглушка на случай, если изображение не загрузилось
             wheel_background = pygame.Surface((self.radius * 2, self.radius * 2))
             wheel_background.fill(GRAY)
@@ -82,7 +84,7 @@ class WheelMenu:
             build_icon = images.GAME_IMAGES["construction_icon"]
             plant_icon = images.GAME_IMAGES["planting_icon"]
         except KeyError as e:
-            print(f"Ошибка: иконка не найдена - {e}")
+
             build_icon = pygame.Surface((32, 32))
             build_icon.fill((0, 0, 255))
             plant_icon = pygame.Surface((32, 32))
@@ -141,7 +143,7 @@ class SeedMenu:
     def handle_input(self, event, screen_width, objects, camera_x):
         if not self.is_open:
             return None
-        print(f"SeedMenu handling event: {event}, language: {self.language}")
+
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mx, my = pygame.mouse.get_pos()
             close_rect = pygame.Rect(screen_width - 30, 10, 20, 20)
@@ -151,35 +153,34 @@ class SeedMenu:
             available_seeds = [seed for seed in SEEDS if seed["unlock_level"] <= self.level]
             for i, seed in enumerate(available_seeds):
                 row, col = i // 2, i % 2
-                rect = pygame.Rect(screen_width - 190 + col * 90, 60 + row * 60, 80, 50)
+                rect = pygame.Rect(screen_width - 180 + col * (64 + 10), 60 + row * (64 + 10), 64, 64)  # Новые размеры
                 if rect.collidepoint(mx, my) and self.coins >= seed["cost"]:
                     self.selected_seed = {**seed, "language": self.language}
                     self.planting = True
-                    print(f"Selected seed: {self.selected_seed['name']}, planting: {self.planting}")
+
                     return "seed_selected"
             if self.planting and self.selected_seed:
                 world_x = mx + camera_x
                 world_y = my
-                print(f"Attempting to plant at world position ({world_x}, {world_y})")
+
                 planted = False
                 for obj in objects:
                     if obj.obj_type == "bed":
                         bed_rect = pygame.Rect(obj.x, obj.y, obj.width, obj.height)
-                        print(f"Checking bed at ({obj.x}, {obj.y}), rect: {bed_rect}, planted: {obj.is_planted}")
+
                         if bed_rect.collidepoint(world_x, world_y) and not obj.is_planted and self.coins >= \
                                 self.selected_seed["cost"]:
                             obj.plant_seed(self.selected_seed)
                             planted = True
-                            print(f"Planted {self.selected_seed['name']} on bed at ({obj.x}, {obj.y})")
+
                             break
                 if planted:
                     return {"action": "plant", "cost_coins": self.selected_seed["cost"]}
-                else:
-                    print("No suitable bed found for planting!")
+
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             mx, my = pygame.mouse.get_pos()
             menu_rect = pygame.Rect(screen_width - 200, 0, 200, SCREEN_HEIGHT)
-            print(f"SeedMenu right click at ({mx}, {my}), menu_rect: {menu_rect}, collide: {menu_rect.collidepoint(mx, my)}, language: {self.language}")
+
             if not menu_rect.collidepoint(mx, my):
                 self.close()
                 return None
@@ -194,78 +195,166 @@ class SeedMenu:
         try:
             background_image = images.GAME_IMAGES["menu_background"]
         except KeyError as e:
-            print(f"Ошибка: изображение фона меню строительства не найдено - {e}")
+
             # Заглушка на случай, если изображение не загрузилось
             background_image = pygame.Surface((menu_width, menu_height))
             background_image.fill((200, 200, 200))
 
         # Отрисовка фона
-        screen.blit(background_image, (screen_width-menu_width, 0))
+        screen.blit(background_image, (screen_width - menu_width, 0))
 
         seeds_per_row = 2
-        seed_width = 90
-        seed_height = 60
-        start_x = screen_width - 190
+        seed_width = 64  # Новый размер кнопки
+        seed_height = 64  # Новый размер кнопки
         start_y = 60
 
         available_seeds = [seed for seed in SEEDS if seed["unlock_level"] <= self.level]
 
-        tooltip = None
+        # Вычисляем общую ширину строки кнопок
+        total_row_width = seeds_per_row * seed_width + (seeds_per_row - 1) * 10  # 138 пикселей для 2 кнопок
+        # Центр меню
+        menu_center_x = screen_width - menu_width // 2
+        # Начальная позиция X для центрирования
+        start_x = menu_center_x - (total_row_width // 2)
+
+        # Отрисовка кнопки возврата
+        mx, my = pygame.mouse.get_pos()
+        return_rect = pygame.Rect(screen_width - 42, 10, 32, 32)  # 10 справа, 10 сверху
+        return_image = images.GAME_IMAGES["return_hover"] if return_rect.collidepoint(mx, my) else images.GAME_IMAGES[
+            "return"]
+        screen.blit(return_image, (return_rect.x, return_rect.y))
+
         for i, seed in enumerate(available_seeds):
             row = i // seeds_per_row
             col = i % seeds_per_row
-            rect_x = start_x + col * seed_width
-            rect_y = start_y + row * seed_height
-            rect = pygame.Rect(rect_x, rect_y, 80, 50)
-            color = (173, 216, 230) if self.coins >= seed["cost"] else GRAY
+            rect_x = start_x + col * (seed_width + 10)
+            rect_y = start_y + row * (seed_height + 10)
+            rect = pygame.Rect(rect_x, rect_y, seed_width, seed_height)
             is_hovered = rect.collidepoint(pygame.mouse.get_pos())
             is_active = self.selected_seed and seed["name"] == self.selected_seed["name"]
-            menu_color = color
+        tooltip = None
+
+        for i, seed in enumerate(available_seeds):
+            row = i // seeds_per_row
+            col = i % seeds_per_row
+            rect_x = start_x + col * (seed_width + 10)  # Отступ 10 пикселей между кнопками
+            rect_y = start_y + row * (seed_height + 10)  # Отступ 10 пикселей между строками
+            rect = pygame.Rect(rect_x, rect_y, seed_width, seed_height)
+            is_hovered = rect.collidepoint(pygame.mouse.get_pos())
+            is_active = self.selected_seed and seed["name"] == self.selected_seed["name"]
+
+            # Отрисовка фона кнопки (puck_seed)
+            try:
+                puck_seed_image = images.GAME_IMAGES["puck_seed"]
+            except KeyError as e:
+
+                puck_seed_image = pygame.Surface((seed_width, seed_height))
+                puck_seed_image.fill(GRAY)
+
+            screen.blit(puck_seed_image, (rect_x, rect_y))
+
+            # Отрисовка изображения семени поверх фона
+            try:
+                seed_image = images.GAME_IMAGES[f"{seed['name']}_seed"]
+            except KeyError as e:
+
+                seed_image = pygame.Surface((seed_width, seed_height))
+                seed_image.fill(YELLOW)
+
+            # Центрируем семя на кнопке
+            seed_x = rect_x + (seed_width - seed_image.get_width()) // 2
+            seed_y = rect_y + (seed_height - seed_image.get_height()) // 2
+            screen.blit(seed_image, (seed_x, seed_y))
+
+            # Подсветка при наведении или выборе
             if is_active:
-                menu_color = GREEN
+                pygame.draw.rect(screen, GREEN, rect, 2)  # Зеленая рамка для активной кнопки
             elif is_hovered:
-                menu_color = WHITE
+                pygame.draw.rect(screen, WHITE, rect, 2)  # Белая рамка при наведении
+                # Формируем текст подсказки
                 tooltip_lines = [
-                    f"{get_text('Name', self.language)}: {get_text(seed['name'], self.language)}",
-                    f"{get_text('Cost', self.language)}: {seed['cost']}",
-                    f"{get_text('Growth Time', self.language)}: {seed['ripening_time_minutes']} {get_text('min', self.language)}",
-                    f"{get_text('Watering Interval', self.language)}: {seed['watering_interval_minutes']} {get_text('min', self.language)}",
-                    f"{get_text('Harvest Yield', self.language)}: {seed['harvest_yield']}"
+                    f"{get_text(seed['name'].capitalize(), self.language)}",  # Название
+                    "",  # Пустая строка для разделения (будет заменена иконками)
+                    "",  # Место для стоимости
+                    "",  # Место для времени созревания
+                    "",  # Место для времени полива
+                    ""  # Место для урожая
                 ]
                 tooltip = "\n".join(tooltip_lines)
 
-            pygame.draw.rect(screen, menu_color, rect)
-            text = self.font.render(get_text(seed["name"], self.language)[0], True, BLACK)
-            text_rect = text.get_rect(center=(rect_x + 40, rect_y + 25))
-            screen.blit(text, text_rect)
-
+        # Отрисовка подсказки (оставим текущую реализацию, если она уже настроена)
         if tooltip:
+            # (Твой код подсказки остается без изменений, если ты доволен текущей реализацией)
             tooltip_lines = tooltip.split('\n')
-            tooltip_height = len(tooltip_lines) * 20 + 10
-            tooltip_width = 0
-            for line in tooltip_lines:
-                if line.startswith(get_text('Cost', self.language)):
-                    parts = line.split(': ', 1)
-                    if len(parts) == 2:
-                        number = parts[1]
-                        text_part = f"{parts[0]}: "
-                        line_width = self.tooltip_font.size(text_part)[0] + self.tooltip_font.size(number)[0] + \
-                                     images.GAME_IMAGES["coin_menu"].get_width() + 5
-                    else:
-                        line_width = self.tooltip_font.size(line)[0] + images.GAME_IMAGES["coin_menu"].get_width() + 5
-                elif line.startswith(get_text('Harvest Yield', self.language)):
-                    parts = line.split(': ', 1)
-                    if len(parts) == 2:
-                        number = parts[1]
-                        text_part = f"{parts[0]}: "
-                        line_width = self.tooltip_font.size(text_part)[0] + self.tooltip_font.size(number)[0] + \
-                                     images.GAME_IMAGES["harvest"].get_width() + 5
-                    else:
-                        line_width = self.tooltip_font.size(line)[0] + images.GAME_IMAGES["harvest"].get_width() + 5
-                else:
-                    line_width = self.tooltip_font.size(line)[0]
-                tooltip_width = max(tooltip_width, line_width + 10)
+            icon_size = 16
+            line_height = 20
+            padding = 10
+            tooltip_width = 100
+            tooltip_height = len(tooltip_lines) * line_height
 
+            # Создаем поверхность для подсказки
+            tooltip_surface = pygame.Surface((tooltip_width, tooltip_height), pygame.SRCALPHA)
+
+            # Загружаем и масштабируем фон подсказки
+            try:
+                tooltip_background = images.GAME_IMAGES["tooltip_background"]
+                tooltip_background = pygame.transform.scale(tooltip_background, (tooltip_width, tooltip_height))
+            except KeyError as e:
+
+                tooltip_background = pygame.Surface((tooltip_width, tooltip_height))
+                tooltip_background.fill((0, 0, 0, 200))
+
+            tooltip_surface.blit(tooltip_background, (0, 0))
+
+            # Иконки
+            coin_icon = pygame.transform.scale(images.GAME_IMAGES["coin_menu"], (icon_size, icon_size))
+            clock_icon = pygame.transform.scale(images.GAME_IMAGES["clock_icon"], (icon_size, icon_size))
+            water_drop_icon = pygame.transform.scale(images.GAME_IMAGES["water_drop_icon"], (icon_size, icon_size))
+            harvest_icon = pygame.transform.scale(images.GAME_IMAGES["harvest"], (icon_size, icon_size))
+
+            # Заполняем строки
+            seed_index = next(i for i, seed in enumerate(available_seeds) if
+                              get_text(seed['name'].capitalize(), self.language) == tooltip_lines[0])
+            seed = available_seeds[seed_index]
+            y_offset = padding+2
+            x_offset = padding
+
+            # Название
+            name_text = self.tooltip_font.render(tooltip_lines[0], True, WHITE)
+            tooltip_surface.blit(name_text, (x_offset, y_offset))
+            y_offset += line_height
+
+            # Функция для центрирования иконки относительно текста
+            def center_icon_y(text_surface, y_position):
+                text_height = text_surface.get_height()
+                return y_position + (text_height - icon_size) // 2
+
+            # Стоимость
+            cost_text = self.tooltip_font.render(f"{seed['cost']}", True, WHITE)
+            tooltip_surface.blit(coin_icon, (x_offset, center_icon_y(cost_text, y_offset)))
+            tooltip_surface.blit(cost_text, (x_offset + icon_size + 5, y_offset))
+            y_offset += line_height + 2
+
+            # Время созревания
+            ripening_text = self.tooltip_font.render(
+                f"{seed['ripening_time_minutes']} {get_text('min', self.language)}", True, WHITE)
+            tooltip_surface.blit(clock_icon, (x_offset, center_icon_y(ripening_text, y_offset)))
+            tooltip_surface.blit(ripening_text, (x_offset + icon_size + 5, y_offset))
+            y_offset += line_height
+
+            # Время полива
+            watering_text = self.tooltip_font.render(
+                f"{seed['watering_interval_minutes']} {get_text('min', self.language)}", True, WHITE)
+            tooltip_surface.blit(water_drop_icon, (x_offset, center_icon_y(watering_text, y_offset)))
+            tooltip_surface.blit(watering_text, (x_offset + icon_size + 5, y_offset))
+            y_offset += line_height
+
+            # Урожай
+            harvest_text = self.tooltip_font.render(f"{seed['harvest_yield']}", True, WHITE)
+            tooltip_surface.blit(harvest_icon, (x_offset, center_icon_y(harvest_text, y_offset)))
+            tooltip_surface.blit(harvest_text, (x_offset + icon_size + 5, y_offset))
+
+            # Позиция подсказки на экране
             tooltip_rect = pygame.Rect(pygame.mouse.get_pos()[0] + 10, pygame.mouse.get_pos()[1], tooltip_width,
                                        tooltip_height)
             if tooltip_rect.right > screen_width:
@@ -273,50 +362,11 @@ class SeedMenu:
             if tooltip_rect.bottom > SCREEN_HEIGHT:
                 tooltip_rect.top = pygame.mouse.get_pos()[1] - tooltip_height - 10
 
-            pygame.draw.rect(screen, BLACK, tooltip_rect, border_radius=5)
-            pygame.draw.rect(screen, WHITE, tooltip_rect, 2, border_radius=5)
-            for i, line in enumerate(tooltip_lines):
-                if line.startswith(get_text('Cost', self.language)):
-                    parts = line.split(': ', 1)
-                    if len(parts) == 2:
-                        text_part, number = parts
-                        text_surface = self.tooltip_font.render(f"{text_part}: ", True, WHITE)
-                        number_surface = self.tooltip_font.render(number, True, WHITE)
-                        coin_image = pygame.transform.scale(images.GAME_IMAGES["coin_menu"],
-                                                            (16, 16))  # Убедились в размере
-                        text_height = text_surface.get_height()
-                        coin_height = coin_image.get_height()
-                        y_offset = (text_height - coin_height) // 2
-                        screen.blit(text_surface, (tooltip_rect.x + 5, tooltip_rect.y + 5 + i * 20))
-                        screen.blit(number_surface, (
-                        tooltip_rect.x + 5 + self.tooltip_font.size(f"{text_part}: ")[0], tooltip_rect.y + 5 + i * 20))
-                        screen.blit(coin_image, (
-                        tooltip_rect.x + 5 + self.tooltip_font.size(f"{text_part}: {number}")[0] + 5,
-                        tooltip_rect.y + 5 + i * 20 + y_offset))
-                elif line.startswith(get_text('Harvest Yield', self.language)):
-                    parts = line.split(': ', 1)
-                    if len(parts) == 2:
-                        text_part, number = parts
-                        text_surface = self.tooltip_font.render(f"{text_part}: ", True, WHITE)
-                        number_surface = self.tooltip_font.render(number, True, WHITE)
-                        harvest_image = pygame.transform.scale(images.GAME_IMAGES["harvest"],
-                                                               (16, 16))  # Убедились в размере
-                        text_height = text_surface.get_height()
-                        harvest_height = harvest_image.get_height()
-                        y_offset = (text_height - harvest_height) // 2
-                        screen.blit(text_surface, (tooltip_rect.x + 5, tooltip_rect.y + 5 + i * 20))
-                        screen.blit(number_surface, (
-                        tooltip_rect.x + 5 + self.tooltip_font.size(f"{text_part}: ")[0], tooltip_rect.y + 5 + i * 20))
-                        screen.blit(harvest_image, (
-                        tooltip_rect.x + 5 + self.tooltip_font.size(f"{text_part}: {number}")[0] + 5,
-                        tooltip_rect.y + 5 + i * 20 + y_offset))
-                else:
-                    text_surface = self.tooltip_font.render(line, True, WHITE)
-                    screen.blit(text_surface, (tooltip_rect.x + 5, tooltip_rect.y + 5 + i * 20))
-
+            # Отрисовка подсказки на экране
+            screen.blit(tooltip_surface, (tooltip_rect.x, tooltip_rect.y))
 
 class BuildMenu:
-    def __init__(self, language, coins, level=1):
+    def __init__(self, language, coins, level=1,notification_manager=None):
         self.is_open = False
         self.language = language
         self.coins = coins
@@ -357,6 +407,7 @@ class BuildMenu:
             })
         # Фильтр по умолчанию (пока только "functional")
         self.current_category = "functional"
+        self.notification_manager = notification_manager
 
     def open(self):
         self.is_open = True
@@ -364,14 +415,14 @@ class BuildMenu:
         self.preview_build = None
         self.moving_object = None
         self.current_index = 0
-        print("BuildMenu open")
+
 
     def close(self):
         self.is_open = False
         self.build_action = None
         self.preview_build = None
         self.moving_object = None
-        print("BuildMenu closed")
+
 
     def update(self, coins, level):
         self.coins = coins
@@ -384,11 +435,11 @@ class BuildMenu:
         from game_utils import snap_to_grid, check_collision
         if not self.is_open:
             return None
-        print(f"BuildMenu handling event: {event}, language: {self.language}")
+
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mx, my = pygame.mouse.get_pos()
             build_rects = self.draw(pygame.display.get_surface(), harvest, products, return_rects=True)
-            print(f"Mouse click at ({mx}, {my}), Rects: {build_rects.keys()}")
+
 
             # Обработка кликов по кнопкам категорий
             for category in ["functional", "decor", "roads"]:
@@ -400,12 +451,11 @@ class BuildMenu:
                                              "category"] == self.current_category]
                     if not available_options:
                         self.current_index = 0  # Устанавливаем индекс на 0, если опции пусты
-                    print(f"Switched to category: {category}")
+
                     return None
 
             if build_rects["close"].collidepoint(mx, my):
                 self.close()
-                print("Closing BuildMenu")
                 return "close_build_menu"
             elif build_rects["left_arrow"].collidepoint(mx, my):
                 available_options = [i for i, option in enumerate(self.build_options) if
@@ -421,11 +471,11 @@ class BuildMenu:
                     self.current_index = (self.current_index + 1) % len(available_options)
             elif build_rects["move"].collidepoint(mx, my):
                 self.build_action = "move"
-                print("Set build_action to move")
+
                 return "set_move"
             elif build_rects["destroy"].collidepoint(mx, my):
                 self.build_action = "destroy"
-                print("Set build_action to destroy")
+
                 return "set_destroy"
             elif build_rects["build_button"].collidepoint(mx, my):
                 available_options = [option for option in self.build_options if
@@ -447,12 +497,12 @@ class BuildMenu:
                     elif option["text"] == get_text("Canning Cellar", self.language):
                         self.preview_build = CanningCellar(0, 0)
                     self.build_action = "build_preview"
-                    print(f"Starting build preview for {option['text']}")
+
                     return "start_build_preview"
                 else:
-                    self.error_message = get_text("Сладкий, мы не можем себе это позволить", self.language)
-                    self.error_timer = pygame.time.get_ticks()
-                    print(self.error_message)
+                    if self.notification_manager:
+                        self.notification_manager.add_notification("no_resources")
+
             elif self.build_action == "build_preview" and self.preview_build:
                 mx, my = pygame.mouse.get_pos()
                 new_x = snap_to_grid(mx + camera_x, grid_size=32)
@@ -463,6 +513,8 @@ class BuildMenu:
                 self.preview_build.y = new_y
                 if not check_collision(self.preview_build, objects, grid_size=32, allow_touching=True):
                     objects.append(self.preview_build)
+                    print(
+                        f"Added {self.preview_build.obj_type} to objects at ({self.preview_build.x}, {self.preview_build.y})")
                     available_options = [option for option in self.build_options if
                                          self.level >= option["unlock_level"] and option[
                                              "category"] == self.current_category]
@@ -470,9 +522,11 @@ class BuildMenu:
                     cost = option["cost_coins"]
                     harvest_cost = option.get("cost_harvest", 0)
                     products_cost = option.get("cost_products", 0)
-                    print(f"Built {option['text']} at ({new_x}, {new_y}), added to objects list")
+
                     self.preview_build = None
                     self.build_action = None
+                    print(
+                    f"Build result: {{'action': 'build', 'cost_coins': {cost}, 'cost_harvest': {harvest_cost}, 'cost_products': {products_cost}}}")
                     return {"action": "build", "cost_coins": cost, "cost_harvest": harvest_cost,
                             "cost_products": products_cost}
             elif self.build_action == "move" and self.moving_object is None:
@@ -494,7 +548,7 @@ class BuildMenu:
                                 self.preview_build = MapObject(obj.x, obj.y, obj.width, obj.height, obj.color,
                                                                obj.obj_type)
                             self.build_action = "move_preview"
-                            print(f"Selected object for move: {obj.obj_type} at ({obj.x}, {obj.y})")
+
                             return "start_move_preview"
             elif self.build_action == "move_preview" and self.moving_object and self.preview_build:
                 mx, my = pygame.mouse.get_pos()
@@ -512,19 +566,19 @@ class BuildMenu:
                     self.moving_object = None
                     self.preview_build = None
                     self.build_action = "move"
-                    print(f"Successfully moved {moved_obj.obj_type} to ({new_x}, {new_y})")
+
                     return {"action": "move_complete", "moved_obj": moved_obj}
             elif self.build_action == "destroy":
                 for i, obj in enumerate(objects):
                     obj_rect = pygame.Rect(obj.x - camera_x, obj.y, obj.width, obj.height)
-                    print(f"Checking object {obj.obj_type} at ({obj.x}, {obj.y}) with rect {obj_rect} for destroy")
+
                     if obj_rect.collidepoint(mx, my) and obj.obj_type in ["bed", "mill",
                                                                           "canning_cellar"] and obj.obj_type not in [
                         "house"]:
-                        print(f"Destroying object {obj.obj_type} at ({obj.x}, {obj.y})")
+
                         destroyed_obj = objects.pop(i)
                         self.build_action = "destroy"
-                        print("Destroy action completed, menu remains open")
+
                         return {"action": "destroy_complete", "destroyed_obj": destroyed_obj}
         elif event.type == pygame.MOUSEMOTION:
             if self.build_action in ["build_preview", "move_preview"] and self.preview_build:
@@ -535,14 +589,14 @@ class BuildMenu:
                 new_y = max(0, min(new_y, SCREEN_HEIGHT - self.preview_build.height))
                 self.preview_build.x = new_x
                 self.preview_build.y = new_y
-                print(f"Preview updated to ({new_x}, {new_y})")
+
                 return {"action": self.build_action, "preview_obj": self.preview_build}
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             mx, my = pygame.mouse.get_pos()
             menu_rect = pygame.Rect(screen_width - 240, 0, 240, SCREEN_HEIGHT)
             if not menu_rect.collidepoint(mx, my):
                 self.close()
-                print("Closing BuildMenu by right click outside")
+
                 return None
         return None
 
@@ -556,7 +610,7 @@ class BuildMenu:
         try:
             background_image = images.GAME_IMAGES["menu_background"]
         except KeyError as e:
-            print(f"Ошибка: изображение фона меню строительства не найдена - {e}")
+
             background_image = pygame.Surface((menu_width, menu_height))
             background_image.fill((200, 200, 200))
 
@@ -625,21 +679,21 @@ class BuildMenu:
                 build_image.fill((255, 255, 255))
             scale_factor = min(image_zone_width / build_image.get_width(), image_zone_height / build_image.get_height())
             scaled_image = pygame.transform.scale(build_image, (
-            int(build_image.get_width() * scale_factor), int(build_image.get_height() * scale_factor)))
+                int(build_image.get_width() * scale_factor), int(build_image.get_height() * scale_factor)))
             screen.blit(scaled_image, (image_zone_x + (image_zone_width - scaled_image.get_width()) // 2,
                                        image_zone_y + (image_zone_height - scaled_image.get_height()) // 2))
 
             # Название объекта
             title_text = self.font.render(current_option["text"], True, BLACK)
             screen.blit(title_text, (
-            build_rect.x + (build_rect.width - title_text.get_width()) // 2, image_zone_y + image_zone_height + 10))
+                build_rect.x + (build_rect.width - title_text.get_width()) // 2, image_zone_y + image_zone_height + 10))
 
             # Стоимость
             coin_image = images.GAME_IMAGES["coin_menu"]
             harvest_image = pygame.transform.scale(images.GAME_IMAGES["harvest"], (16, 16))
             product_image = pygame.transform.scale(images.GAME_IMAGES["product"], (16, 16))
             cost_coins_text = self.tooltip_font.render(str(current_option["cost_coins"]), True, BLACK) if \
-            current_option["cost_coins"] > 0 else None
+                current_option["cost_coins"] > 0 else None
             cost_harvest_text = self.tooltip_font.render(str(current_option["cost_harvest"]), True,
                                                          BLACK) if "cost_harvest" in current_option and current_option[
                 "cost_harvest"] > 0 else None
@@ -709,11 +763,45 @@ class BuildMenu:
             self.hovered_buttons["left_arrow"] = left_arrow_rect.collidepoint(mx, my)
             self.hovered_buttons["right_arrow"] = right_arrow_rect.collidepoint(mx, my)
 
-        # Отрисовка сообщения об ошибке
+        # Отрисовка сообщения об ошибке с переносом текста и плавным исчезновением
         if self.error_message and pygame.time.get_ticks() - self.error_timer < 2000:
-            error_surface = self.small_font.render(self.error_message, True, (255, 0, 0))
-            error_rect = error_surface.get_rect(center=(build_rect.x + build_rect.width // 2, SCREEN_HEIGHT - 20))
-            screen.blit(error_surface, error_rect)
+            # Разбиваем текст на строки, чтобы он помещался в ширину меню
+            max_width = menu_width - 20  # Учитываем небольшие отступы
+            words = self.error_message.split()
+            lines = []
+            current_line = ""
+            for word in words:
+                test_line = current_line + " " + word if current_line else word
+                if self.small_font.size(test_line)[0] <= max_width:
+                    current_line = test_line
+                else:
+                    lines.append(current_line)
+                    current_line = word
+            if current_line:
+                lines.append(current_line)
+
+            # Вычисляем высоту текста
+            line_height = self.small_font.size(" ")[1]  # Высота строки
+            total_text_height = len(lines) * line_height
+
+            # Создаем поверхность для текста
+            text_surface = pygame.Surface((menu_width, total_text_height), pygame.SRCALPHA)
+
+            # Отрисовываем строки текста
+            for i, line in enumerate(lines):
+                line_surface = self.small_font.render(line, True, (255, 0, 0))
+                text_surface.blit(line_surface, (10, i * line_height))  # Отступ слева 10 пикселей
+
+            # Вычисляем прозрачность (от 255 до 0 за 2 секунды)
+            elapsed_time = pygame.time.get_ticks() - self.error_timer
+            alpha = max(0, 255 - (255 * elapsed_time // 2000))  # Линейное уменьшение прозрачности
+            text_surface.set_alpha(alpha)
+
+            # Позиция текста внизу меню
+            text_rect = text_surface.get_rect(
+                center=(screen_width - menu_width // 2, SCREEN_HEIGHT - total_text_height - 20)
+            )
+            screen.blit(text_surface, text_rect)
 
         if return_rects:
             rects = {
@@ -833,6 +921,7 @@ class MarketMenu:
                              "image": coin_image})
                     result = {"action": "sell", "value": total_value, "harvest_sold": self.harvest_to_sell,
                               "products_sold": self.products_to_sell}
+                    print(f"Sell result: {{'action': 'sell', 'value': {total_value}, 'harvest_sold': {self.harvest_to_sell}, 'products_sold': {self.products_to_sell}}}")
                     return result
                 else:
                     self.error_message = get_text("Недостаточно ресурсов!", self.language)
@@ -927,14 +1016,15 @@ class MarketMenu:
             }
 
 class MenuManager:
-    def __init__(self, language, coins, harvest, products, level):
+    def __init__(self, language, coins, harvest, products, level, notification_manager=None):
         self.menus = {
             "wheel": WheelMenu(language),
             "seed": SeedMenu(language, coins, level),
-            "build": BuildMenu(language, coins, level),
+            "build": BuildMenu(language, coins, level, notification_manager),
             "market": MarketMenu(language, coins, harvest, products)
         }
         self.active_menu = None
+
 
     def open_menu(self, menu_name, *args):
         if menu_name in self.menus:
@@ -948,46 +1038,43 @@ class MenuManager:
                 self.menus[menu_name].open()
             elif menu_name == "market":
                 self.menus[menu_name].open()
-            print(f"Opened menu: {menu_name} with args: {args}, language: {self.menus[menu_name].language}")
-        else:
-            print(f"Menu {menu_name} not found")
+
+
 
     def close_all(self):
         for menu in self.menus.values():
             menu.close()
         self.active_menu = None
-        print("All menus closed")
 
     def handle_input(self, event, camera_x, screen_width, map_width, objects, harvest, products):
-        print(f"MenuManager handling event: {event}, language: {self.menus.get(self.active_menu, {}).language if self.active_menu else 'No active menu'}")
         if self.active_menu:
             if self.active_menu == "wheel":
                 result = self.menus[self.active_menu].handle_input(event, camera_x)
             elif self.active_menu == "seed":
                 result = self.menus[self.active_menu].handle_input(event, screen_width, objects, camera_x)
             elif self.active_menu == "build":
-                result = self.menus[self.active_menu].handle_input(event, screen_width, map_width, objects, camera_x, harvest, products)
+                result = self.menus[self.active_menu].handle_input(event, screen_width, map_width, objects, camera_x,
+                                                                   harvest, products)
+                print(f"Результат из {self.active_menu}: {result}")
             elif self.active_menu == "market":
                 result = self.menus[self.active_menu].handle_input(event, screen_width)
             else:
                 result = None
-            print(f"MenuManager result: {result}")
+
             if result in ["close_seed_menu", "close_build_menu", "close_market_menu"]:
                 self.close_all()
             elif result == "build":
                 self.open_menu("build")
-                print("Opening BuildMenu from WheelMenu")
             elif result == "plant":
                 self.open_menu("seed")
-                print("Opening SeedMenu from WheelMenu")
-            elif result:
-                print(f"Результат от {self.active_menu}: {result}")
-            return result
+
+            return result  # Добавляем возврат результата
+
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             self.close_all()
-            print("Closed all menus by right click outside")
             return None
         return None
+
 
     def draw(self, screen, camera_x, harvest, products):
         if self.active_menu:

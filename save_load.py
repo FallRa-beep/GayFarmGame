@@ -47,7 +47,7 @@ def load_game(screen, filename=None):
 
     if filename is None:
         save_files = list_saves()
-        print(f"Список сохранений: {save_files}")
+
         if not save_files:
             print("Нет доступных сохранений")
             return None
@@ -58,7 +58,7 @@ def load_game(screen, filename=None):
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            print(f"Данные из {filename}: {data}")
+
             # Восстановление данных
             player_data = data.get("player", {})
             house_data = data.get("house", {})

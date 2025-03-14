@@ -17,7 +17,7 @@ class Menu:
         self.button_normal = images.GAME_IMAGES.get("button_normal")
         self.button_hover = images.GAME_IMAGES.get("button_hover")
         if not self.button_normal or not self.button_hover:
-            print("Warning: Button images not loaded correctly!")
+
             self.button_normal = pygame.Surface((200, 60))
             self.button_normal.fill(GRAY)
             self.button_hover = pygame.Surface((200, 60))
@@ -25,13 +25,13 @@ class Menu:
         self.close_button = images.GAME_IMAGES.get("close_button")
         self.close_hover = images.GAME_IMAGES.get("close_button_hover")
         if not self.close_button:
-            print("Warning: Close button image not loaded correctly!")
+
             self.close_button = pygame.Surface((30, 30))
             self.close_button.fill((255, 0, 0))
         self.arrow_left = images.GAME_IMAGES.get("arrow_left")
         self.arrow_right = images.GAME_IMAGES.get("arrow_right")
         if not self.arrow_left or not self.arrow_right:
-            print("Warning: Arrow images not loaded correctly!")
+
             self.arrow_left = pygame.Surface((20, 20))
             self.arrow_left.fill(GRAY)
             self.arrow_right = pygame.Surface((20, 20))
@@ -119,13 +119,14 @@ class Menu:
                                                  slider_width + 2 * knob_radius, slider_height + 2 * knob_radius)
 
     def draw(self, screen):
-        self.update_rects(screen)  # Обновляем прямоугольники перед отрисовкой
+
+        self.update_rects(screen)
 
         screen_width = screen.get_width()
         screen_height = SCREEN_HEIGHT
 
-        # Отрисовка фона
         background = images.GAME_IMAGES["background_menu"]
+
         bg_width = background.get_width()
         bg_height = background.get_height()
         if bg_height != screen_height:
@@ -218,6 +219,7 @@ class Menu:
             pygame.draw.circle(screen, BLACK, (knob_x, sound_rect.y + (button_height - 10) // 2 + 5), 8)
 
 
+
     def handle_event(self, event, mx, my, screen):
         self.update_rects(screen)  # Обновляем прямоугольники перед обработкой событий
 
@@ -271,10 +273,7 @@ class Menu:
                     self.dragging_sound = True
 
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            if self.dragging_music:
-                print("Music slider released, final volume:", self.music_volume)
-            if self.dragging_sound:
-                print("Sound slider released, final volume:", self.sound_volume)
+
             self.dragging_music = False
             self.dragging_sound = False
 

@@ -8,12 +8,12 @@ def load_game_images():
 
     def load_image(path, size, fallback_color, force_size=None):
         try:
-            print(f"Attempting to load image from {path}")
+
             if not os.path.exists(path):
                 print(f"File not found: {path}")
                 raise FileNotFoundError(f"Image file {path} does not exist")
             image = pygame.image.load(path).convert_alpha()
-            print(f"Successfully loaded image from {path}")
+
             # Если указан force_size, масштабируем изображение до этого размера
             if force_size:
                 image = pygame.transform.scale(image, force_size)
@@ -21,7 +21,7 @@ def load_game_images():
                 image = pygame.transform.scale(image, size)
             return image
         except (pygame.error, FileNotFoundError) as e:
-            print(f"Error loading {path}: {e}. Using fallback color {fallback_color}.")
+
             surface = pygame.Surface(size)
             surface.fill(fallback_color)
             return surface
@@ -69,7 +69,12 @@ def load_game_images():
     IMAGES["destroy_normal"] = load_image(os.path.join("images", "ui", "destroy_normal.png"), (32, 32), GRAY)
     IMAGES["destroy_hover"] = load_image(os.path.join("images", "ui", "destroy_hover.png"), (32, 32), GRAY)
     IMAGES["destroy_active"] = load_image(os.path.join("images", "ui", "destroy_active.png"), (32, 32), GRAY)
-    IMAGES["tooltip_background"] = load_image(os.path.join("images", "ui", "tooltip_background.png"), (32, 32), GRAY)
+    IMAGES["tooltip_background"] = load_image(os.path.join("images", "ui", "tooltip_background.png"), (100, 120), GRAY)
+    IMAGES["puck_seed"] = load_image(os.path.join("images", "ui", "puck_seed.png"), (64, 64), GRAY, force_size=(64, 64))
+    IMAGES["clock_icon"] = load_image(os.path.join("images", "ui", "clock_icon.png"), (16, 16), GRAY)
+    IMAGES["water_drop_icon"] = load_image(os.path.join("images", "ui", "water_drop_icon.png"), (16, 16), GRAY)
+    IMAGES["hero_portrait"] = load_image(os.path.join("images", "heroes","player", "player_portrait.png"), (64, 64), GRAY)
+    IMAGES["notification_background"] = load_image(os.path.join("images", "ui", "notification_background.png"),(400, 84), GRAY)
 
     for seed in SEEDS:
         plant_name = seed["name"]
@@ -86,9 +91,7 @@ def load_game_images():
             os.path.join("images", "plants", f"{plant_name}_seed.png"), (32, 32), YELLOW
         )
 
-    print("Images loaded or replaced with fallbacks!")
-    for key, img in IMAGES.items():
-        print(f"Size of {key}: {img.get_size()}")
+
 
     return IMAGES
 

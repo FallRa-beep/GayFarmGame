@@ -81,6 +81,7 @@ def handle_input(player, objects, camera_x, screen_width, map_width, screen_heig
 
     # Обрабатываем результат от menu_manager
     menu_result = menu_manager.handle_input(event, camera_x, screen_width, map_width, objects, harvest, products)
+    print(f"Menu result before processing: {menu_result}")
     if menu_result:
         # Если это предварительный просмотр перемещения, выравниваем объект по сетке
         if isinstance(menu_result, dict) and menu_result.get("action") == "start_move_preview":
@@ -109,5 +110,7 @@ def handle_input(player, objects, camera_x, screen_width, map_width, screen_heig
                 products -= menu_result["products_sold"]
                 print(f"Sell processed: coins={coins}, harvest={harvest}, products={products}")
             menu_result["updated_resources"] = {"coins": coins, "harvest": harvest, "products": products}
+        print(f"Updated resources in input_handler: {menu_result}")
+
         return menu_result
     return None

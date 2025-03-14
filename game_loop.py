@@ -10,6 +10,7 @@ from input_handler import handle_input
 from game_utils import snap_to_grid
 from save_load import save_game
 from quadtree import QuadTree
+from notifications import NotificationManager
 
 def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0, harvest_count=0, level=1, coins=10,
               harvest=0, products=0, language="en", map_tiles=None):
@@ -17,9 +18,12 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
     screen_width = screen.get_width()
     screen_height = SCREEN_HEIGHT
 
-    menu_manager = MenuManager(language, coins, harvest, products, level)
+    # Инициализируем NotificationManager
+    notification_manager = NotificationManager(language)
+    menu_manager = MenuManager(language, coins, harvest, products, level, notification_manager=notification_manager)
     boundary = pygame.Rect(0, 0, MAP_WIDTH, SCREEN_HEIGHT)
     quad_tree = QuadTree(boundary, capacity=4)
+
 
     # Инициализация game_context до его использования
     game_context = {
@@ -50,8 +54,8 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
         house_x = snap_to_grid(screen_width // 2 - 64, grid_size=32)
         house_y = snap_to_grid(10, grid_size=32)
         house = MapObject(house_x, house_y, 128, 128, (0, 0, 0), "house")
-        market_x = snap_to_grid(64, grid_size=32)
-        market_y = snap_to_grid(house_y, grid_size=32)
+        market_x = snap_to_grid(house_x - 150, grid_size=32)
+        market_y = snap_to_grid(house_y + 120, grid_size=32)
         market_stall = MarketStall(market_x, market_y)
         bed1_x = snap_to_grid(screen_width // 2 - 96, grid_size=32)
         bed1_y = snap_to_grid(screen_height - 128, grid_size=32)
@@ -107,8 +111,8 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
             objects = []
         has_market_stall = any(obj.obj_type == "market_stall" for obj in objects)
         if not has_market_stall:
-            market_x = snap_to_grid(64, grid_size=32)
-            market_y = snap_to_grid(10, grid_size=32)
+            market_x = snap_to_grid(house.x - 150, grid_size=32)  # Правее дома
+            market_y = snap_to_grid(house.y + 120, grid_size=32)  # Ниже дома
             market_stall = MarketStall(market_x, market_y)
             objects.append(market_stall)
         for obj in objects:
@@ -136,9 +140,7 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
     app_active = 4
 
     running = True
-    # Убираем автоматическое сохранение
-    # last_save_time = time.time()
-    # auto_save_interval = 600
+
 
     def find_nearest_bed_quad(p, condition=None):  # Изменяем имя параметра, чтобы избежать затенения
         player_pos = (p.x + p.width // 2, p.y + p.height // 2)
@@ -191,6 +193,8 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 result = handle_input(player, objects, camera_x, screen_width, MAP_WIDTH, screen_height, game_context, coins,
                                       harvest, harvest_count, level, products, event)
+                print(f"Handle input result: {result}")  # Отладка
+                print(f"Game loop result: {result}")
                 if result in ["exit", "main_menu"]:
                     break
                 elif isinstance(result, dict):
@@ -214,6 +218,7 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
                                 new_obj.y = grid_y
                             if new_obj not in quad_tree.get_all_objects():
                                 quad_tree.insert(new_obj)
+                                print(f"Inserted into QuadTree: {new_obj.obj_type} at ({new_obj.x}, {new_obj.y})")
                     elif result.get("action") == "plant":
                         for obj in objects:
                             if obj.obj_type == "bed" and obj.is_planted and not obj.is_watered:
@@ -239,6 +244,8 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
                         destroyed_obj = result.get("destroyed_obj")
                         if destroyed_obj:
                             quad_tree.remove(destroyed_obj)
+
+        notification_manager.update()
 
         target_beds = [obj for obj in objects if obj.obj_type == "bed"]
         mills = [obj for obj in objects if obj.obj_type == "mill"]
@@ -329,6 +336,7 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
                             harvest_threshold = LEVEL_THRESHOLDS.get(level, float('inf'))
                             if harvest_count >= harvest_threshold:
                                 level = min(level + 1, max(LEVEL_THRESHOLDS.keys()))
+                                notification_manager.add_notification("level_up")
                                 print(get_text("Level up! New level: {level}", language).format(level=level))
                     else:
                         player.target_x = target_bed.x + target_bed.width // 2 - player.width // 2
@@ -348,14 +356,13 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
         player.y = max(0, min(player.y, SCREEN_HEIGHT - player.height))
         player.move()
 
-        if game_context["window_minimized"]:
-            clock.tick(10)
-        else:
-            clock.tick(60)
-            camera_x = render_game(screen, player, objects, camera_x, screen_width, MAP_WIDTH, coins, harvest, products,
-                                   level, game_context)
-            # Обновляем camera_x в game_context
-            game_context["camera_x"] = camera_x
+        clock.tick(60)  # Убираем зависимость от window_minimized
+        camera_x = render_game(screen, player, objects, camera_x, screen_width, MAP_WIDTH, coins, harvest, products,
+                               level, game_context)
+        menu_manager.draw(screen, camera_x, harvest, products)  # Рисуем меню
+        notification_manager.draw(screen)
+        # Обновляем camera_x в game_context
+        game_context["camera_x"] = camera_x
 
         pygame.display.flip()
 
