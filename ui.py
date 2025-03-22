@@ -4,7 +4,19 @@ import images
 from config import SCREEN_HEIGHT, WHITE, BLACK, GRAY, GREEN, SEEDS
 from translations import get_text
 import fonts
+import json
 
+def save_menu_language(language):
+    with open("menu_language.json", "w") as f:
+        json.dump({"language": language}, f)
+
+def load_menu_language():
+            try:
+                with open("menu_language.json", "r") as f:
+                    data = json.load(f)
+                    return data.get("language", "en")
+            except FileNotFoundError:
+                return "en"
 class Menu:
     @staticmethod
     def is_save_exists():
@@ -14,7 +26,7 @@ class Menu:
 
     def __init__(self, fonts=None):
         self.font = fonts["title_font_large"] if fonts else pygame.font.Font(None, 36)
-        self.current_language = "en"
+        self.current_language = load_menu_language()
         self.button_normal = images.GAME_IMAGES.get("button_normal")
         self.button_hover = images.GAME_IMAGES.get("button_hover")
         if not self.button_normal or not self.button_hover:
@@ -240,6 +252,7 @@ class Menu:
                     return None
                 if self.left_arrow_rect and self.left_arrow_rect.collidepoint(mx, my):
                     self.current_language = "ru" if self.current_language == "en" else "en"
+                    save_menu_language(self.current_language)
                     has_saves = self.is_save_exists()
                     self.options = [
                         {"text": get_text("New Game", self.current_language), "image_normal": self.button_normal,
@@ -254,6 +267,7 @@ class Menu:
                     return None
                 elif self.right_arrow_rect and self.right_arrow_rect.collidepoint(mx, my):
                     self.current_language = "en" if self.current_language == "ru" else "ru"
+                    save_menu_language(self.current_language)
                     has_saves = self.is_save_exists()
                     self.options = [
                         {"text": get_text("New Game", self.current_language), "image_normal": self.button_normal,

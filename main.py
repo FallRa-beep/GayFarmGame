@@ -16,6 +16,7 @@ import fonts
 from fonts import initialize_fonts
 
 
+
 def load_menu_language():
     """Загружает язык меню из файла, если он существует, или возвращает 'en' по умолчанию."""
     if os.path.exists("menu_language.json"):
@@ -282,7 +283,7 @@ def main():
 
     menu_language = load_menu_language()
     saved_data = load_game(screen)
-    game_language = "ru" if saved_data and saved_data[-2] == "ru" else "en" if saved_data else "en"
+    game_language = menu_language
 
     # Передаем fonts_dict в NotificationManager
     notification_manager = NotificationManager(game_language, fonts_dict)
@@ -372,7 +373,7 @@ def main():
                                                     game_context["coins"],
                                                     game_context["harvest"],
                                                     game_context["products"],
-                                                    game_language,
+                                                    menu.current_language,
                                                     game_context["map_tiles"],
                                                     fonts=fonts_dict)
                             continue
@@ -386,7 +387,7 @@ def main():
                 player, house, objects, camera_x, harvest_count, level, coins, harvest, products, game_language, map_tiles = loaded_data
                 game_language = menu.current_language
                 loop_result = game_loop(screen, player, house, objects, camera_x, harvest_count, level, coins,
-                                        harvest, products, game_language, map_tiles, fonts=fonts)
+                                        harvest, products, game_language, map_tiles, fonts=fonts_dict)
                 while True:
                     if isinstance(loop_result, tuple):
                         result, game_context = loop_result
@@ -394,7 +395,7 @@ def main():
                         result, game_context = loop_result, None
                     if result in ["exit", "main_menu"]:
                         if result == "main_menu" and game_context:
-                            dialog_result = show_save_dialog(screen, game_context, game_language)
+                            dialog_result = show_save_dialog(screen, game_context, game_language, fonts=fonts_dict)
                             if dialog_result == "main_menu":
                                 update_menu_options(menu)
                                 break
@@ -412,7 +413,7 @@ def main():
                                                         game_context["coins"],
                                                         game_context["harvest"],
                                                         game_context["products"],
-                                                        game_language,
+                                                        menu.current_language,
                                                         game_context["map_tiles"],
                                                         fonts=fonts)
                                 continue
@@ -426,7 +427,7 @@ def main():
                 player, house, objects, camera_x, harvest_count, level, coins, harvest, products, game_language, map_tiles = loaded_data
                 game_language = menu.current_language
                 loop_result = game_loop(screen, player, house, objects, camera_x, harvest_count, level, coins,
-                                        harvest, products, game_language, map_tiles)
+                                        harvest, products, game_language, map_tiles, fonts=fonts_dict)
                 while True:
                     if isinstance(loop_result, tuple):
                         result, game_context = loop_result
@@ -434,7 +435,7 @@ def main():
                         result, game_context = loop_result, None
                     if result in ["exit", "main_menu"]:
                         if result == "main_menu" and game_context:
-                            dialog_result = show_save_dialog(screen, game_context, game_language)
+                            dialog_result = show_save_dialog(screen, game_context, game_language, fonts=fonts_dict)
                             if dialog_result == "main_menu":
                                 update_menu_options(menu)
                                 break

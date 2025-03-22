@@ -32,7 +32,7 @@ def list_saves():
             with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             save_data.append({"filename": file_name, "timestamp": timestamp, "data": data})
-            print(f"Успешно прочитан файл: {file_name}")
+
         except json.JSONDecodeError as e:
             print(f"Ошибка при декодировании файла {file_name}: {e}. Файл будет пропущен.")
             continue  # Пропускаем повреждённый файл

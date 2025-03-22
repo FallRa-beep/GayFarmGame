@@ -161,7 +161,7 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
     result = None  # Инициализируем result, чтобы избежать ошибки
     while running:
 
-
+        game_context["language"] = language
         menu_manager.update(coins, harvest, products, level)
 
         for event in pygame.event.get():
