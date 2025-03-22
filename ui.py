@@ -104,7 +104,7 @@ class Menu:
             self.back_rect = pygame.Rect(screen_width - 32 - 10, 10, 32, 32)
 
             # Прямоугольники для переключения языка
-            lang_text = "English" if self.current_language == "en" else "Russian"
+            lang_text = "English" if self.current_language == "en" else "Русский"
             lang_switch_text = self.font.render(lang_text, True, WHITE)
             text_width = lang_switch_text.get_width()
             padding = 20
@@ -199,7 +199,7 @@ class Menu:
             language_text_rect = language_title.get_rect(center=language_rect.center)
             screen.blit(language_title, language_text_rect)
 
-            lang_text = "English" if self.current_language == "en" else "Russian"
+            lang_text = "English" if self.current_language == "en" else "Русский"
             lang_switch_text = self.font.render(lang_text, True, WHITE)
             # Заменяем условие на постоянное использование self.button_normal
             lang_switch_image = self.button_normal  # Убрано активное состояние

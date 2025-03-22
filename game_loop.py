@@ -353,7 +353,7 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
         player.move()
 
         clock.tick(60)  # Убираем зависимость от window_minimized
-        camera_x = render_game(screen, player, objects, camera_x, screen_width, MAP_WIDTH, coins, harvest, products,
+        camera_x = render_game(screen , game_context["language"], player, objects, camera_x, screen_width, MAP_WIDTH, coins, harvest, products,
                                level, game_context,fonts=fonts)
         menu_manager.draw(screen, camera_x, harvest, products)  # Рисуем меню
         notification_manager.draw(screen)

@@ -5,7 +5,7 @@ from translations import get_text
 from game_utils import snap_to_grid, check_collision
 import fonts
 
-def render_game(screen, player, objects, camera_x, screen_width, map_width, coins, harvest, products, level, game_context,fonts=None):
+def render_game(screen,language, player, objects, camera_x, screen_width, map_width, coins, harvest, products, level, game_context,fonts=None):
     mx, my = pygame.mouse.get_pos()
     # Убираем screen.fill(WHITE), так как теперь у нас есть фон из тайлов
 
@@ -142,14 +142,14 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
     # Отрисовка tooltip поверх всех элементов
     tooltip = None
     if coins_rect.collidepoint(mx, my):
-        tooltip = tooltip_font.render(get_text("Золотые искры, которые заставляют сердца биться чаще!"), True, WHITE)
+        tooltip = tooltip_font.render(get_text("Golden sparks that make hearts beat faster!", game_context["language"]), True, WHITE)
     elif harvest_rect.collidepoint(mx, my):
-        tooltip = tooltip_font.render(get_text("Сочные плоды твоих трудов — сладость, которую хочется попробовать..."), True,
+        tooltip = tooltip_font.render(get_text("The juicy fruits of your labor — a sweetness you can't resist...", game_context["language"]), True,
                                      WHITE)
     elif products_rect.collidepoint(mx, my):
-        tooltip = tooltip_font.render(get_text("Вкусные деликатесы, чтобы соблазнить любого!"), True, WHITE)
+        tooltip = tooltip_font.render(get_text("Tasty delicacies to seduce anyone!", game_context["language"]), True, WHITE)
     elif level_rect.collidepoint(mx, my):
-        tooltip = tooltip_font.render(get_text("Твой путь к вершине — горячий и страстный подъем к успеху!"), True, WHITE)
+        tooltip = tooltip_font.render(get_text("Your path to the top. A hot and passionate climb to success!", game_context["language"]), True, WHITE)
 
     if tooltip:
         tooltip_rect = pygame.Rect(mx + 10, my, tooltip.get_width() + 10, tooltip.get_height() + 10)
