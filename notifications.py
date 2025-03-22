@@ -5,12 +5,11 @@ from fonts import initialize_fonts
 from translations import get_text
 
 class NotificationManager:
-    def __init__(self, language):
+    def __init__(self, language, fonts):  # Добавляем параметр fonts
         self.notifications = []
         self.language = language
-        self.fonts = {"title_font_medium": pygame.font.Font(None, 24)}  # Заглушка
-        self.font = self.fonts["title_font_medium"]
-        self.max_text_width = 316  # 400 (ширина окна) - 64 (портрет) - 20 (отступ слева) - 10 (отступ справа)
+        self.font = fonts["title_font_medium"]  # Используем переданный шрифт 24 pt
+        self.max_text_width = 316
 
     def add_notification(self, notification_type):
         """Добавляет уведомление в очередь по типу."""

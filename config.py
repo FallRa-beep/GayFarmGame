@@ -14,7 +14,7 @@ SEEDS = [
     {"name": "corn", "cost": 1, "ripening_time_minutes": 0.2, "watering_interval_minutes": 0.1, "sprout_time_minutes": 0.1, "harvest_yield": 8, "unlock_level": 2}
 ]
 
-LEVEL_THRESHOLDS = {1: 5, 2: 10, 3: 20, 4: 40}
+LEVEL_THRESHOLDS = {1: 3, 2: 10, 3: 20, 4: 40}
 
 BUILDING_CONFIG = {
     "bed": {

@@ -5,16 +5,17 @@ from config import SCREEN_HEIGHT, SEEDS, BLACK, WHITE, GRAY, GREEN, BUILDING_CON
 import images
 from entities import Bed, MapObject, Mill, CanningCellar, MarketStall
 from notifications import NotificationManager
-
+from fonts import initialize_fonts
+import fonts
 
 class WheelMenu:
-    def __init__(self, language):
+    def __init__(self, language, fonts=None):
         self.is_open = False
         self.center_x = 0
         self.center_y = 0
         self.radius = 50
         self.language = language  # Убедимся, что language передаётся
-        self.font = pygame.font.Font(None, 24)
+        self.font = fonts["title_font_medium"] if fonts else pygame.font.Font(None, 16)
 
     def open(self, x, y):
         self.is_open = True
@@ -96,16 +97,16 @@ class WheelMenu:
                     (plant_endpoint[0] - plant_icon.get_width() - 5, plant_endpoint[1] - plant_icon.get_height() // 2))
 
 class SeedMenu:
-    def __init__(self, language, coins, level=1):
+    def __init__(self, language, coins, level=1, fonts=None):
         self.is_open = False
         self.language = language
         self.coins = coins
         self.level = level
         self.current_seed = None
         self.current_index = 0
-        self.font = pygame.font.Font(None, 36)
-        self.small_font = pygame.font.Font(None, 24)
-        self.tooltip_font = pygame.font.Font(None, 18)
+        self.font = fonts["title_font_large"] if fonts else pygame.font.Font(None, 26)
+        self.small_font = fonts["title_font_medium"] if fonts else pygame.font.Font(None, 16)
+        self.tooltip_font = fonts["desc_font_small"] if fonts else pygame.font.Font(None, 14)
         self.hovered_buttons = {}
         self.error_message = None
         self.error_timer = 0
@@ -366,7 +367,7 @@ class SeedMenu:
             screen.blit(tooltip_surface, (tooltip_rect.x, tooltip_rect.y))
 
 class BuildMenu:
-    def __init__(self, language, coins, level=1,notification_manager=None):
+    def __init__(self, language, coins, level=1,notification_manager=None, fonts=None):
         self.is_open = False
         self.language = language
         self.coins = coins
@@ -375,9 +376,9 @@ class BuildMenu:
         self.preview_build = None
         self.moving_object = None
         self.current_index = 0
-        self.font = pygame.font.Font(None, 36)
-        self.small_font = pygame.font.Font(None, 24)
-        self.tooltip_font = pygame.font.Font(None, 18)
+        self.font = fonts["title_font_large"] if fonts else pygame.font.Font(None, 26)
+        self.small_font = fonts["title_font_medium"] if fonts else pygame.font.Font(None, 16)
+        self.tooltip_font = fonts["desc_font_small"] if fonts else pygame.font.Font(None, 14)
         self.hovered_buttons = {}
         self.error_message = None
         self.error_timer = 0
@@ -817,7 +818,7 @@ class BuildMenu:
 
 
 class MarketMenu:
-    def __init__(self, language, coins, harvest, products):
+    def __init__(self, language, coins, harvest, products, fonts=None):
         self.is_open = False
         self.language = language
         self.coins = coins
@@ -825,8 +826,8 @@ class MarketMenu:
         self.products = products
         self.harvest_to_sell = 0
         self.products_to_sell = 0
-        self.font = pygame.font.Font(None, 36)
-        self.small_font = pygame.font.Font(None, 24)
+        self.font = fonts["title_font_large"] if fonts else pygame.font.Font(None, 26)
+        self.small_font = fonts["title_font_medium"] if fonts else pygame.font.Font(None, 16)
         self.error_message = None
         self.error_timer = 0
         self.sale_values = [0, 1, 5, 10, 25, 50, 100]
@@ -1016,12 +1017,12 @@ class MarketMenu:
             }
 
 class MenuManager:
-    def __init__(self, language, coins, harvest, products, level, notification_manager=None):
+    def __init__(self, language, coins, harvest, products, level, notification_manager=None, fonts=None):
         self.menus = {
-            "wheel": WheelMenu(language),
-            "seed": SeedMenu(language, coins, level),
-            "build": BuildMenu(language, coins, level, notification_manager),
-            "market": MarketMenu(language, coins, harvest, products)
+            "wheel": WheelMenu(language, fonts=fonts),
+            "seed": SeedMenu(language, coins, level, fonts=fonts),
+            "build": BuildMenu(language, coins, level, notification_manager, fonts=fonts),
+            "market": MarketMenu(language, coins, harvest, products, fonts=fonts)
         }
         self.active_menu = None
 

@@ -3,8 +3,9 @@ from config import SCREEN_HEIGHT, WHITE, BLACK, GRAY, GREEN
 import images
 from translations import get_text
 from game_utils import snap_to_grid, check_collision
+import fonts
 
-def render_game(screen, player, objects, camera_x, screen_width, map_width, coins, harvest, products, level, game_context):
+def render_game(screen, player, objects, camera_x, screen_width, map_width, coins, harvest, products, level, game_context,fonts=None):
     mx, my = pygame.mouse.get_pos()
     # Убираем screen.fill(WHITE), так как теперь у нас есть фон из тайлов
 
@@ -27,8 +28,8 @@ def render_game(screen, player, objects, camera_x, screen_width, map_width, coin
     game_context["menu_manager"].draw(screen, camera_x, harvest, products)  # Добавляем harvest и products
 
     # Отрисовка интерфейса ресурсов
-    small_font = pygame.font.Font(None, 24)  # Меньший шрифт (24)
-    tooltip_font = pygame.font.Font(None, 18)  # Ещё меньший шрифт для подсказок
+    small_font = fonts["title_font_medium"] if fonts else pygame.font.Font(None, 16)
+    tooltip_font = fonts["desc_font_small"] if fonts else pygame.font.Font(None, 14)
 
     # Уменьшаем иконки до 16x16
     coin_image = pygame.transform.scale(images.GAME_IMAGES["coin_main"], (16, 16))

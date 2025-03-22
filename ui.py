@@ -3,6 +3,7 @@ import math
 import images
 from config import SCREEN_HEIGHT, WHITE, BLACK, GRAY, GREEN, SEEDS
 from translations import get_text
+import fonts
 
 class Menu:
     @staticmethod
@@ -11,8 +12,8 @@ class Menu:
         saves = list_saves()
         return len(saves) > 0
 
-    def __init__(self):
-        self.font = pygame.font.Font(None, 36)
+    def __init__(self, fonts=None):
+        self.font = fonts["title_font_large"] if fonts else pygame.font.Font(None, 36)
         self.current_language = "en"
         self.button_normal = images.GAME_IMAGES.get("button_normal")
         self.button_hover = images.GAME_IMAGES.get("button_hover")
@@ -296,7 +297,7 @@ class Menu:
 
 
 # ui.py (фрагмент draw_wheel)
-def draw_wheel(screen, game_context, camera_x):
+def draw_wheel(screen, game_context, camera_x, fonts=None):
     """Отрисовка колеса действий в месте клика."""
     if not game_context.get("wheel_open"):
         return
@@ -319,7 +320,7 @@ def draw_wheel(screen, game_context, camera_x):
         center_y - radius * math.sin(math.radians(plant_angle))
     )
 
-    font = pygame.font.Font(None, 24)  # Определяем font здесь для использования
+    font = fonts["title_font_medium"] if fonts else pygame.font.Font(None, 24)
     build_text = font.render(get_text("Construction", game_context["language"]), True, (0, 0, 255))
     plant_text = font.render(get_text("Planting", game_context["language"]), True, (0, 255, 0))
 
@@ -333,13 +334,13 @@ def draw_wheel(screen, game_context, camera_x):
         elif selected_action == "plant":
             pygame.draw.circle(screen, (0, 255, 0), (int(center_x), int(center_y)), 5)
 
-def draw_seed_menu(game_context, coins, selected_seed=None, level=1):
+def draw_seed_menu(game_context, coins, selected_seed=None, level=1, fonts=fonts):
     screen = game_context["screen"]
     language = game_context["language"]
     screen_width = screen.get_width()
-    font = pygame.font.Font(None, 48)  # Определяем font здесь
-    tooltip_font = pygame.font.Font(None, 24)
-    small_font = pygame.font.Font(None, 24)
+    font = fonts["title_font_large"] if fonts else pygame.font.Font(None, 48)  # 48 pt
+    tooltip_font = fonts["title_font_medium"] if fonts else pygame.font.Font(None, 24)  # 24 pt
+    small_font = fonts["title_font_medium"] if fonts else pygame.font.Font(None, 24)
 
     menu_width, menu_height = 200, SCREEN_HEIGHT
     pygame.draw.rect(screen, (211, 211, 211), (screen_width - menu_width, 0, menu_width, menu_height))
@@ -436,13 +437,13 @@ def draw_seed_menu(game_context, coins, selected_seed=None, level=1):
                 screen.blit(text_surface, (tooltip_rect.x + 5, tooltip_rect.y + 5 + i * 20))
 
 
-def draw_build_menu(game_context, coins, current_index=0, build_type="functional"):
+def draw_build_menu(game_context, coins, current_index=0, build_type="functional",fonts=fonts):
     screen = game_context["screen"]
     language = game_context["language"]
     screen_width = screen.get_width()
-    font = pygame.font.Font(None, 48)  # Определяем font здесь
-    tooltip_font = pygame.font.Font(None, 20)
-    small_font = pygame.font.Font(None, 24)
+    font = fonts["title_font_large"] if fonts else pygame.font.Font(None, 48)  # 48 pt
+    tooltip_font = fonts["desc_font_small"] if fonts else pygame.font.Font(None, 20)  # 20 pt (примерно 14 pt)
+    small_font = fonts["title_font_medium"] if fonts else pygame.font.Font(None, 24)  # 24 pt
 
     build_options = [
         {"text": get_text("Bed", language=language), "cost": 10, "action": "new", "type": "functional",
@@ -562,8 +563,8 @@ def draw_build_menu(game_context, coins, current_index=0, build_type="functional
     }
 
 
-def confirm_dialog(screen, message):
-    font = pygame.font.Font(None, 36)
+def confirm_dialog(screen, message,fonts=None):
+    font = fonts["title_font_large"] if fonts else pygame.font.Font(None, 36)
     dialog_running = True
     while dialog_running:
         for event in pygame.event.get():
@@ -591,12 +592,12 @@ def confirm_dialog(screen, message):
         pygame.display.flip()
         pygame.time.Clock().tick(60)
 
-def draw_market_menu(game_context, coins, harvest, products):
+def draw_market_menu(game_context, coins, harvest, products, fonts=None):
     screen = game_context["screen"]
     language = game_context["language"]
     screen_width = screen.get_width()
-    font = pygame.font.Font(None, 36)
-    small_font = pygame.font.Font(None, 24)
+    font = fonts["title_font_large"] if fonts else pygame.font.Font(None, 36)  # 36 pt (хотя не используется)
+    small_font = fonts["title_font_medium"] if fonts else pygame.font.Font(None, 24)  # 24 pt
 
     menu_width, menu_height = 400, 250
     menu_x = (screen_width - menu_width) // 2

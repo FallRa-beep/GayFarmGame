@@ -12,6 +12,9 @@ from translations import get_text
 import images
 import random
 from notifications import NotificationManager
+import fonts
+from fonts import initialize_fonts
+
 
 def load_menu_language():
     """Загружает язык меню из файла, если он существует, или возвращает 'en' по умолчанию."""
@@ -26,10 +29,10 @@ def save_menu_language(language):
         json_str = json.dumps({"language": language}, indent=4, ensure_ascii=False)
         f.write(json_str)
 
-def show_save_dialog(screen, game_context, language):
+def show_save_dialog(screen, game_context, language, fonts=None):
     """Показывает диалоговое окно для сохранения игры."""
-    font = pygame.font.Font(None, 36)
-    small_font = pygame.font.Font(None, 24)
+    font = fonts["title_font_large"]  # 36 pt
+    small_font = fonts["title_font_medium"]
     clock = pygame.time.Clock()
     save_slot = None
     confirmation_text = None
@@ -118,7 +121,7 @@ def show_save_dialog(screen, game_context, language):
                         confirmation_text = get_text("Save to", language) + f" {save_slot}?"
                         show_slot_selection = False  # Возвращаемся к основным кнопкам после выбора
 
-def show_load_dialog(screen, language, menu):
+def show_load_dialog(screen, language, menu, fonts=None):
     font = pygame.font.Font(None, 36)
     small_font = pygame.font.Font(None, 24)
     clock = pygame.time.Clock()
@@ -254,10 +257,12 @@ def play_next_track(tracks):
     pygame.mixer.music.play()
 
 
-
 def main():
     pygame.init()
     pygame.mixer.init()
+
+    # Инициализируем шрифты и сохраняем результат в переменную fonts
+    fonts_dict = initialize_fonts()  # Переименуем для ясности, чтобы не путать с модулем fonts
 
     info = pygame.display.Info()
     screen_width = info.current_w
@@ -275,14 +280,17 @@ def main():
 
     images.GAME_IMAGES = images.load_game_images()
 
-
     menu_language = load_menu_language()
     saved_data = load_game(screen)
     game_language = "ru" if saved_data and saved_data[-2] == "ru" else "en" if saved_data else "en"
 
-    notification_manager = NotificationManager(game_language)
-    menu = Menu()
+    # Передаем fonts_dict в NotificationManager
+    notification_manager = NotificationManager(game_language, fonts_dict)
+
+    # Создаем меню, передавая fonts_dict
+    menu = Menu(fonts=fonts_dict)
     menu.current_language = menu_language
+    menu.font = fonts_dict["title_font_large"]  # Устанавливаем кастомный шрифт для меню
     update_menu_options(menu)
 
     music_tracks = load_music_tracks()
@@ -305,14 +313,11 @@ def main():
 
     running = True
     while running:
-
         mx, my = pygame.mouse.get_pos()
-
 
         # Обрабатываем события
         action = None
         for event in pygame.event.get():
-
             try:
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     running = False
@@ -321,9 +326,7 @@ def main():
                 temp_action = menu.handle_event(event, mx, my, screen)
                 if temp_action:  # Сохраняем последнее действие
                     action = temp_action
-
             except Exception as e:
-
                 running = False
 
         # Обрабатываем действие за пределами цикла событий
@@ -340,9 +343,9 @@ def main():
             products = 0
             map_tiles = None
 
-            # Вызов game_loop с полным набором аргументов
+            # Передаем fonts_dict в game_loop
             loop_result = game_loop(screen, player, house, objects, initial_camera_x, harvest_count, level, coins,
-                                    harvest, products, language=game_language, map_tiles=map_tiles)
+                                    harvest, products, language=game_language, map_tiles=map_tiles, fonts=fonts_dict)
             while True:
                 if isinstance(loop_result, tuple):
                     result, game_context = loop_result
@@ -350,7 +353,8 @@ def main():
                     result, game_context = loop_result, None
                 if result in ["exit", "main_menu"]:
                     if result == "main_menu" and game_context:
-                        dialog_result = show_save_dialog(screen, game_context, game_language)
+                        dialog_result = show_save_dialog(screen, game_context,
+                                                         game_language, fonts=fonts_dict)  # Убедись, что fonts_dict передаётся сюда, если нужно
                         if dialog_result == "main_menu":
                             update_menu_options(menu)
                             break
@@ -369,19 +373,20 @@ def main():
                                                     game_context["harvest"],
                                                     game_context["products"],
                                                     game_language,
-                                                    game_context["map_tiles"])
+                                                    game_context["map_tiles"],
+                                                    fonts=fonts_dict)
                             continue
                     elif result == "exit":
                         running = False
                         break
                 break
         elif action == "continue":
-            loaded_data = show_load_dialog(screen, menu.current_language, menu)
+            loaded_data = show_load_dialog(screen, menu.current_language, menu, fonts=fonts_dict)
             if loaded_data:
                 player, house, objects, camera_x, harvest_count, level, coins, harvest, products, game_language, map_tiles = loaded_data
                 game_language = menu.current_language
                 loop_result = game_loop(screen, player, house, objects, camera_x, harvest_count, level, coins,
-                                        harvest, products, game_language, map_tiles)
+                                        harvest, products, game_language, map_tiles, fonts=fonts)
                 while True:
                     if isinstance(loop_result, tuple):
                         result, game_context = loop_result
@@ -408,14 +413,15 @@ def main():
                                                         game_context["harvest"],
                                                         game_context["products"],
                                                         game_language,
-                                                        game_context["map_tiles"])
+                                                        game_context["map_tiles"],
+                                                        fonts=fonts)
                                 continue
                         elif result == "exit":
                             running = False
                             break
                     break
         elif action == "load":
-            loaded_data = show_load_dialog(screen, menu.current_language, menu)
+            loaded_data = show_load_dialog(screen, menu.current_language, menu, fonts)
             if loaded_data:
                 player, house, objects, camera_x, harvest_count, level, coins, harvest, products, game_language, map_tiles = loaded_data
                 game_language = menu.current_language

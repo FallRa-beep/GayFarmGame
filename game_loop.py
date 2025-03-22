@@ -11,16 +11,17 @@ from game_utils import snap_to_grid
 from save_load import save_game
 from quadtree import QuadTree
 from notifications import NotificationManager
+import fonts
 
 def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0, harvest_count=0, level=1, coins=10,
-              harvest=0, products=0, language="en", map_tiles=None):
+              harvest=0, products=0, language="en", map_tiles=None,fonts=None):
     clock = pygame.time.Clock()
     screen_width = screen.get_width()
     screen_height = SCREEN_HEIGHT
 
     # Инициализируем NotificationManager
-    notification_manager = NotificationManager(language)
-    menu_manager = MenuManager(language, coins, harvest, products, level, notification_manager=notification_manager)
+    notification_manager = NotificationManager(language,fonts)
+    menu_manager = MenuManager(language, coins, harvest, products, level, notification_manager=notification_manager, fonts=fonts)
     boundary = pygame.Rect(0, 0, MAP_WIDTH, SCREEN_HEIGHT)
     quad_tree = QuadTree(boundary, capacity=4)
 
@@ -159,12 +160,7 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
 
     result = None  # Инициализируем result, чтобы избежать ошибки
     while running:
-        # Убираем автоматическое сохранение
-        # current_time = time.time()
-        # if current_time - last_save_time >= auto_save_interval:
-        #     save_game(player, house, objects, camera_x, screen, harvest_count, level, coins, harvest, products, language, game_context)
-        #     last_save_time = current_time
-        #     print(get_text("Auto-save completed!", language))
+
 
         menu_manager.update(coins, harvest, products, level)
 
@@ -358,7 +354,7 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
 
         clock.tick(60)  # Убираем зависимость от window_minimized
         camera_x = render_game(screen, player, objects, camera_x, screen_width, MAP_WIDTH, coins, harvest, products,
-                               level, game_context)
+                               level, game_context,fonts=fonts)
         menu_manager.draw(screen, camera_x, harvest, products)  # Рисуем меню
         notification_manager.draw(screen)
         # Обновляем camera_x в game_context
