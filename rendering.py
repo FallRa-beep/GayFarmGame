@@ -50,35 +50,43 @@ def render_game(screen,language, player, objects, camera_x, screen_width, map_wi
     y_offset = (background_height - icon_height) // 2
     x_offset = 0
 
+    # Вычисляем центр иконки по вертикали
+    icon_center_y = y_offset + icon_height // 2
+
     # Монеты
     screen.blit(coin_image, (x_offset + 5, y_offset))
     coins_text = small_font.render(str(coins), True, BLACK)
-    screen.blit(coins_text, (x_offset + 5 + coin_image.get_width() + 5, y_offset))
+    # Центрируем текст по вертикали относительно иконки
+    coins_text_y = icon_center_y - coins_text.get_height() // 2
+    screen.blit(coins_text, (x_offset + 5 + coin_image.get_width() + 5, coins_text_y))
     coins_rect = pygame.Rect(x_offset + 5, y_offset, coin_image.get_width() + coins_text.get_width() + 5 + 30,
-                            coin_image.get_height())
+                             coin_image.get_height())
 
     # Урожай
     x_offset += coin_image.get_width() + 5 + coins_text.get_width() + 30
     screen.blit(harvest_image, (x_offset + 5, y_offset))
     harvest_text = small_font.render(str(harvest), True, BLACK)
-    screen.blit(harvest_text, (x_offset + 5 + harvest_image.get_width() + 5, y_offset))
+    harvest_text_y = icon_center_y - harvest_text.get_height() // 2
+    screen.blit(harvest_text, (x_offset + 5 + harvest_image.get_width() + 5, harvest_text_y))
     harvest_rect = pygame.Rect(x_offset + 5, y_offset, harvest_image.get_width() + harvest_text.get_width() + 5 + 30,
-                              harvest_image.get_height())
+                               harvest_image.get_height())
 
     # Продукты
     x_offset += harvest_image.get_width() + 5 + harvest_text.get_width() + 30
     screen.blit(product_image, (x_offset + 5, y_offset))
     products_text = small_font.render(str(products), True, BLACK)
-    screen.blit(products_text, (x_offset + 5 + product_image.get_width() + 5, y_offset))
+    products_text_y = icon_center_y - products_text.get_height() // 2
+    screen.blit(products_text, (x_offset + 5 + product_image.get_width() + 5, products_text_y))
     products_rect = pygame.Rect(x_offset + 5, y_offset, product_image.get_width() + products_text.get_width() + 5 + 30,
-                               product_image.get_height())
+                                product_image.get_height())
 
     # Уровень
     x_offset += product_image.get_width() + 5 + products_text.get_width() + 30
     level_text = get_text("Level", game_context["language"])
     level_display = f"{level_text}: {level}"
     level_surface = small_font.render(level_display, True, BLACK)
-    screen.blit(level_surface, (x_offset + 5, y_offset))
+    level_text_y = icon_center_y - level_surface.get_height() // 2
+    screen.blit(level_surface, (x_offset + 5, level_text_y))
     level_rect = pygame.Rect(x_offset + 5, y_offset, level_surface.get_width(), level_surface.get_height())
 
     # Отрисовка предпросмотра строительства/перемещения

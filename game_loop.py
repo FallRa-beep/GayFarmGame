@@ -332,6 +332,7 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
                             harvest_threshold = LEVEL_THRESHOLDS.get(level, float('inf'))
                             if harvest_count >= harvest_threshold:
                                 level = min(level + 1, max(LEVEL_THRESHOLDS.keys()))
+                                game_context["level"] = level
                                 notification_manager.add_notification("level_up")
                                 print(get_text("Level up! New level: {level}", language).format(level=level))
                     else:
@@ -363,6 +364,17 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
         pygame.display.flip()
 
         if result in ["exit", "main_menu"]:
+            game_context.update({
+                "player": player,
+                "house": house,
+                "objects": objects,
+                "camera_x": camera_x,
+                "harvest_count": harvest_count,
+                "level": level,
+                "coins": coins,
+                "harvest": harvest,
+                "products": products
+            })
             break
 
     if result == "main_menu":

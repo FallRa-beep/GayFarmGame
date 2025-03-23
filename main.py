@@ -415,7 +415,7 @@ def main():
                                                         game_context["products"],
                                                         menu.current_language,
                                                         game_context["map_tiles"],
-                                                        fonts=fonts)
+                                                        fonts=fonts_dict)
                                 continue
                         elif result == "exit":
                             running = False
@@ -454,7 +454,8 @@ def main():
                                                         game_context["harvest"],
                                                         game_context["products"],
                                                         game_language,
-                                                        game_context["map_tiles"])
+                                                        game_context["map_tiles"],
+                                                        fonts = fonts_dict)
                                 continue
                         elif result == "exit":
                             running = False

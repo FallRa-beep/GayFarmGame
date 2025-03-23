@@ -35,7 +35,7 @@ TRANSLATIONS = {
         "Total": "Total",
         "Sell": "Sell",
         "Mill": "Mill",
-        "Canning Cellar": "Cellar",
+        "canning_cellar": "Cellar",
         "Harvest Yield": "Harvest Yield",
         "Load": "Load",
         "Build": "Build",
@@ -86,7 +86,7 @@ TRANSLATIONS = {
         "Mill": "Мельница",
         "Converts 2 Harvest into 1 Product in 5 seconds": "Преобразует 2 Урожая в 1 Продукт за 5 секунд",
         "Cost: 25 coins + 1 Harvest": "Стоимость: 25 монет + 1 Урожай",
-        "Canning Cellar": "Погреб",  # Добавляем перевод для Canning Cellar
+        "canning_cellar": "Погреб",  # Добавляем перевод для Canning Cellar
         "Harvest Yield": "Получаемый урожай",
         "Load": "Загрузка", # Добавляем перевод для Harvest Yield
         "Build": "Построить",

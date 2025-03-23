@@ -2,29 +2,64 @@ import pygame
 import os
 from config import BROWN, YELLOW, GREEN, BLACK, GRAY, SEEDS, WHITE
 
+
 def load_game_images():
     """Загружает и масштабирует все изображения игры."""
     IMAGES = {}
 
     def load_image(path, size, fallback_color, force_size=None):
         try:
-
             if not os.path.exists(path):
                 print(f"File not found: {path}")
                 raise FileNotFoundError(f"Image file {path} does not exist")
             image = pygame.image.load(path).convert_alpha()
-
-            # Если указан force_size, масштабируем изображение до этого размера
             if force_size:
                 image = pygame.transform.scale(image, force_size)
             else:
                 image = pygame.transform.scale(image, size)
             return image
         except (pygame.error, FileNotFoundError) as e:
-
             surface = pygame.Surface(size)
             surface.fill(fallback_color)
             return surface
+
+    # Динамическая загрузка спрайтов игрока из папки images/animation/player
+    player_animation_dir = os.path.join("images", "animation", "player")
+    player_states = {}
+    if os.path.exists(player_animation_dir):
+        for filename in os.listdir(player_animation_dir):
+            if filename.endswith(".png"):
+                # Разделяем имя файла на части
+                parts = filename.rsplit("_", 1)  # Делим по последнему "_"
+                if len(parts) == 2 and parts[1].replace(".png", "").isdigit():
+                    state_name = parts[0]  # Например, "walking_down" из "walking_down_1.png"
+                    frame_number = int(parts[1].replace(".png", ""))  # Например, "1" из "walking_down_1.png"
+                else:
+                    state_name = filename.replace(".png", "")  # Например, "processing" из "processing.png"
+                    frame_number = 1  # Если номера нет, считаем это первым кадром
+
+                frame_path = os.path.join(player_animation_dir, filename)
+                image = load_image(frame_path, (64, 64), BROWN)
+
+                if state_name not in player_states:
+                    player_states[state_name] = []
+                # Добавляем кадр в список, сортируя по номеру кадра
+                player_states[state_name].append((frame_number, image))
+
+        # Сортируем кадры по номеру
+        for state in player_states:
+            player_states[state].sort(key=lambda x: x[0])  # Сортируем по frame_number
+            player_states[state] = [frame[1] for frame in player_states[state]]  # Оставляем только изображения
+    else:
+        print(f"Папка {player_animation_dir} не найдена, используются заглушки")
+        # Заглушки для базовых состояний
+        default_states = ["idle", "walking_up", "walking_down", "walking_left", "walking_right", "watering",
+                          "harvesting", "processing"]
+        for state in default_states:
+            player_states[state] = [pygame.Surface((64, 64), pygame.SRCALPHA)]
+            player_states[state][0].fill((255, 0, 0, 128))
+
+    IMAGES["player_animations"] = player_states
 
     # Загрузка изображений игрока (force_size не нужен, оставляем как есть)
     IMAGES["player_idle"] = load_image(os.path.join("images", "heroes", "player", "player_idle.png"), (64, 64), BROWN)

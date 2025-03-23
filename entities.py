@@ -347,64 +347,100 @@ class Player:
         self.height = height
         self.speed = speed
         self.state = "idle"
+        self.direction = "down"  # Новое поле для направления (по умолчанию вниз)
         self.action_start_time = 0
         self.target_x = x
         self.target_y = y
         self.language = language
+        self.frame = 0  # Текущий кадр анимации
+        self.animation_speed = 0.1  # Скорость смены кадров (в секундах)
+        self.last_frame_time = pygame.time.get_ticks()
+
+        # Загрузка анимаций
         try:
-            self.images = {
-                "idle": pygame.transform.scale(images.GAME_IMAGES["player_idle"], (width, height)),
-                "walking": pygame.transform.scale(images.GAME_IMAGES["player_walking"], (width, height)),
-                "watering": pygame.transform.scale(images.GAME_IMAGES["player_watering"], (width, height)),
-                "harvesting": pygame.transform.scale(images.GAME_IMAGES["player_harvesting"], (width, height)),
-                "processing": pygame.transform.scale(images.GAME_IMAGES["player_processing"], (width, height))
+            self.animations = images.GAME_IMAGES["player_animations"]
+            # Убеждаемся, что все состояния имеют хотя бы один кадр
+            default_states = [
+                "idle",
+                "walking_up", "walking_down", "walking_left", "walking_right",  # Разные направления для ходьбы
+                "watering", "harvesting", "processing"
+            ]
+            for state in default_states:
+                if state not in self.animations or not self.animations[state]:
+                    self.animations[state] = [pygame.Surface((width, height), pygame.SRCALPHA)]
+                    self.animations[state][0].fill((255, 0, 0, 128))  # Красный как заглушка
+        except KeyError:
+            self.animations = {
+                "idle": [pygame.Surface((width, height), pygame.SRCALPHA)],
+                "walking_up": [pygame.Surface((width, height), pygame.SRCALPHA)],
+                "walking_down": [pygame.Surface((width, height), pygame.SRCALPHA)],
+                "walking_left": [pygame.Surface((width, height), pygame.SRCALPHA)],
+                "walking_right": [pygame.Surface((width, height), pygame.SRCALPHA)],
+                "watering": [pygame.Surface((width, height), pygame.SRCALPHA)],
+                "harvesting": [pygame.Surface((width, height), pygame.SRCALPHA)],
+                "processing": [pygame.Surface((width, height), pygame.SRCALPHA)]
             }
-        except KeyError as e:
-            self.images = {
-                "idle": pygame.Surface((width, height), pygame.SRCALPHA),
-                "walking": pygame.Surface((width, height), pygame.SRCALPHA),
-                "watering": pygame.Surface((width, height), pygame.SRCALPHA),
-                "harvesting": pygame.Surface((width, height), pygame.SRCALPHA),
-                "processing": pygame.Surface((width, height), pygame.SRCALPHA)
-            }
-            for state in self.images:
-                self.images[state].fill((255, 0, 0, 128))
+            for state in self.animations:
+                self.animations[state][0].fill((255, 0, 0, 128))
 
     def reload_images(self):
-        """Перезагружает изображения игрока."""
+        """Перезагружает анимации игрока."""
         try:
-            self.images = {
-                "idle": pygame.transform.scale(images.GAME_IMAGES["player_idle"], (self.width, self.height)),
-                "walking": pygame.transform.scale(images.GAME_IMAGES["player_walking"], (self.width, self.height)),
-                "watering": pygame.transform.scale(images.GAME_IMAGES["player_watering"], (self.width, self.height)),
-                "harvesting": pygame.transform.scale(images.GAME_IMAGES["player_harvesting"], (self.width, self.height)),
-                "processing": pygame.transform.scale(images.GAME_IMAGES["player_processing"], (self.width, self.height))
+            self.animations = images.GAME_IMAGES["player_animations"]
+            default_states = [
+                "idle",
+                "walking_up", "walking_down", "walking_left", "walking_right",
+                "watering", "harvesting", "processing"
+            ]
+            for state in default_states:
+                if state not in self.animations or not self.animations[state]:
+                    self.animations[state] = [pygame.Surface((self.width, self.height), pygame.SRCALPHA)]
+                    self.animations[state][0].fill((255, 0, 0, 128))
+        except KeyError:
+            self.animations = {
+                "idle": [pygame.Surface((self.width, self.height), pygame.SRCALPHA)],
+                "walking_up": [pygame.Surface((self.width, self.height), pygame.SRCALPHA)],
+                "walking_down": [pygame.Surface((self.width, self.height), pygame.SRCALPHA)],
+                "walking_left": [pygame.Surface((self.width, self.height), pygame.SRCALPHA)],
+                "walking_right": [pygame.Surface((self.width, self.height), pygame.SRCALPHA)],
+                "watering": [pygame.Surface((self.width, self.height), pygame.SRCALPHA)],
+                "harvesting": [pygame.Surface((self.width, self.height), pygame.SRCALPHA)],
+                "processing": [pygame.Surface((self.width, self.height), pygame.SRCALPHA)]
             }
-        except KeyError as e:
-            self.images = {
-                "idle": pygame.Surface((self.width, self.height), pygame.SRCALPHA),
-                "walking": pygame.Surface((self.width, self.height), pygame.SRCALPHA),
-                "watering": pygame.Surface((self.width, self.height), pygame.SRCALPHA),
-                "harvesting": pygame.Surface((self.width, self.height), pygame.SRCALPHA),
-                "processing": pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-            }
-            for state in self.images:
-                self.images[state].fill((255, 0, 0, 128))
+            for state in self.animations:
+                self.animations[state][0].fill((255, 0, 0, 128))
 
     def start_action(self, action):
         self.state = action
         self.action_start_time = pygame.time.get_ticks()
+        self.frame = 0  # Сбрасываем кадр при смене действия
 
     def move(self):
         if self.state == "walking":
             dx = self.target_x - self.x
             dy = self.target_y - self.y
             distance = math.hypot(dx, dy)
+
+            # Определяем направление
             if distance > 0:
+                # Приоритет направления: если dx больше, то влево/вправо, иначе вверх/вниз
+                if abs(dx) > abs(dy):
+                    if dx > 0:
+                        self.direction = "right"
+                    else:
+                        self.direction = "left"
+                else:
+                    if dy > 0:
+                        self.direction = "down"
+                    else:
+                        self.direction = "up"
+
+                # Движение
                 if distance < self.speed:
                     self.x = self.target_x
                     self.y = self.target_y
                     self.state = "idle"
+                    self.frame = 0  # Сбрасываем кадр при переходе в idle
                 else:
                     direction_x = dx / distance if dx != 0 else 0
                     direction_y = dy / distance if dy != 0 else 0
@@ -412,6 +448,7 @@ class Player:
                     self.y += direction_y * self.speed
             else:
                 self.state = "idle"
+                self.frame = 0  # Сбрасываем кадр, если дистанция уже 0
         elif self.state in ["idle", "watering", "harvesting", "processing"]:
             pass
 
@@ -419,20 +456,32 @@ class Player:
         screen_x = self.x - camera_x
         if 0 <= screen_x <= screen.get_width() and 0 <= self.y <= screen.get_height():
             try:
-                image = self.images[self.state]
+                # Выбираем анимацию в зависимости от состояния и направления
+                if self.state == "walking":
+                    animation_key = f"walking_{self.direction}"
+                else:
+                    animation_key = self.state
+
+                # Обновляем кадр анимации
+                current_time = pygame.time.get_ticks()
+                if current_time - self.last_frame_time >= self.animation_speed * 1000:
+                    self.frame = (self.frame + 1) % len(self.animations[animation_key])
+                    self.last_frame_time = current_time
+
+                # Рисуем текущий кадр
+                image = self.animations[animation_key][self.frame]
                 screen.blit(image, (screen_x, self.y))
-            except KeyError as e:
+            except (KeyError, IndexError) as e:
+                # Если что-то пошло не так, рисуем заглушку
                 default_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
                 default_surface.fill((255, 0, 0, 128))
                 screen.blit(default_surface, (screen_x, self.y))
-
-    def __str__(self):
-        return f"Player(x={self.x}, y={self.y}, state={self.state})"
 
     def to_dict(self):
         """Возвращает словарь с данными игрока для сохранения."""
         return {
             "x": self.x, "y": self.y, "width": self.width, "height": self.height,
             "speed": self.speed, "state": self.state, "action_start_time": self.action_start_time,
-            "target_x": self.target_x, "target_y": self.target_y, "language": self.language
+            "target_x": self.target_x, "target_y": self.target_y, "language": self.language,
+            "direction": self.direction  # Сохраняем направление
         }
