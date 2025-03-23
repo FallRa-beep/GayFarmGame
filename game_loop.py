@@ -322,11 +322,13 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
                         if target_bed.is_planted and not target_bed.is_watered and not target_bed.is_ripe and target_bed.watering_start_time is None:
                             target_bed.water()
                             player.start_action("watering")
+                            player.direction = "right"
                         elif target_bed.is_ripe:
                             seed = next((s for s in SEEDS if s["name"] == target_bed.plant_type), SEEDS[0])
                             harvest_yield = seed["harvest_yield"]
                             target_bed.harvest()
                             player.start_action("harvesting")
+                            player.direction = "right"
                             harvest += harvest_yield
                             harvest_count += 1
                             harvest_threshold = LEVEL_THRESHOLDS.get(level, float('inf'))
@@ -336,8 +338,8 @@ def game_loop(screen, player=None, house=None, objects=None, initial_camera_x=0,
                                 notification_manager.add_notification("level_up")
                                 print(get_text("Level up! New level: {level}", language).format(level=level))
                     else:
-                        player.target_x = target_bed.x + target_bed.width // 2 - player.width // 2
-                        player.target_y = target_bed.y + target_bed.height // 2 - player.height // 2
+                        player.target_x = target_bed.x - player.width // 2
+                        player.target_y = target_bed.y - player.height // 2
                         player.target_x = max(0, min(player.target_x, MAP_WIDTH - player.width))
                         player.target_y = max(0, min(player.target_y, SCREEN_HEIGHT - player.height))
                         player.state = "walking"
