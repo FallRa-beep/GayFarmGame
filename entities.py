@@ -223,50 +223,72 @@ class Bed(MapObject):
 class Mill(MapObject):
     def __init__(self, x, y, width=64, height=64):
         super().__init__(x, y, width, height, (160, 82, 45), "mill")
-        self.movable = True  # Мельницу можно перемещать
+        self.movable = True
         self.is_processing = False
         self.process_start_time = 0
         self.process_duration = BUILDING_CONFIG["mill"]["work_time"]
         self.harvest_stored = 0
+        # Анимация
+        self.frame = 0
+        self.animation_speed = 0.1  # Скорость смены кадров в секундах
+        self.last_frame_time = pygame.time.get_ticks()
         try:
-            self.image = images.GAME_IMAGES["mill"]
+            self.static_image = images.GAME_IMAGES["mill"]  # Статичное изображение
+            self.animations = images.GAME_IMAGES.get("mill_animations", {})  # Анимации
+            self.processing_frames = self.animations.get("processing", [self.static_image])  # Кадры обработки
         except KeyError:
             print("Ошибка: изображение мельницы не найдено")
-            self.image = pygame.Surface((self.width, self.height))
-            self.image.fill((160, 82, 45))
+            self.static_image = pygame.Surface((self.width, self.height))
+            self.static_image.fill((160, 82, 45))
+            self.processing_frames = [self.static_image]
 
     def reload_images(self):
-        """Перезагружает изображение мельницы."""
         try:
-            self.image = images.GAME_IMAGES["mill"]
+            self.static_image = images.GAME_IMAGES["mill"]
+            self.animations = images.GAME_IMAGES.get("mill_animations", {})
+            self.processing_frames = self.animations.get("processing", [self.static_image])
         except KeyError:
             print("Ошибка: изображение мельницы не найдено")
-            self.image = pygame.Surface((self.width, self.height))
-            self.image.fill((160, 82, 45))
+            self.static_image = pygame.Surface((self.width, self.height))
+            self.static_image.fill((160, 82, 45))
+            self.processing_frames = [self.static_image]
+
+    def draw(self, screen, camera_x):
+        current_time = pygame.time.get_ticks()
+        if self.is_processing and self.processing_frames:
+            # Обновляем кадр анимации
+            if current_time - self.last_frame_time >= self.animation_speed * 1000:
+                self.frame = (self.frame + 1) % len(self.processing_frames)
+                self.last_frame_time = current_time
+            screen.blit(self.processing_frames[self.frame], (self.x - camera_x, self.y))
+        else:
+            screen.blit(self.static_image, (self.x - camera_x, self.y))
+
+        # Прогресс-бар
+        if self.is_processing:
+            progress = (pygame.time.get_ticks() - self.process_start_time) / self.process_duration
+            bar_width = int(self.width * progress)
+            pygame.draw.rect(screen, GREEN, (self.x - camera_x, self.y - 10, bar_width, 5))
 
     def start_processing(self, harvest):
+        """Начинает процесс переработки урожая в продукты."""
         if not self.is_processing and harvest >= BUILDING_CONFIG["mill"]["consume"].get("harvest", 0):
             self.is_processing = True
             self.process_start_time = pygame.time.get_ticks()
             self.harvest_stored = BUILDING_CONFIG["mill"]["consume"].get("harvest", 0)
-            return BUILDING_CONFIG["mill"]["consume"].get("harvest", 0)
+            return self.harvest_stored
         return 0
 
     def update(self):
+        """Обновляет состояние мельницы и возвращает количество произведённых продуктов."""
         if self.is_processing:
             current_time = pygame.time.get_ticks()
             if current_time - self.process_start_time >= self.process_duration:
                 self.is_processing = False
                 self.harvest_stored = 0
+                # Возвращаем количество произведённых продуктов
                 return BUILDING_CONFIG["mill"]["produce"].get("products", 0)
         return 0
-
-    def draw(self, screen, camera_x):
-        screen.blit(self.image, (self.x - camera_x, self.y))
-        if self.is_processing:
-            progress = (pygame.time.get_ticks() - self.process_start_time) / self.process_duration
-            bar_width = int(self.width * progress)
-            pygame.draw.rect(screen, GREEN, (self.x - camera_x, self.y - 10, bar_width, 5))
 
     def to_dict(self):
         return {
@@ -286,21 +308,31 @@ class CanningCellar(MapObject):
         self.process_duration = BUILDING_CONFIG["canning_cellar"]["work_time"]
         self.harvest_stored = 0
         self.products_stored = 0
+        # Анимация
+        self.frame = 0
+        self.animation_speed = 0.1  # Скорость смены кадров в секундах
+        self.last_frame_time = pygame.time.get_ticks()
         try:
-            self.image = images.GAME_IMAGES.get("canning_cellar", images.GAME_IMAGES["mill"])
+            self.static_image = images.GAME_IMAGES.get("canning_cellar", images.GAME_IMAGES["mill"])
+            self.animations = images.GAME_IMAGES.get("canning_cellar_animations", {})
+            self.processing_frames = self.animations.get("processing", [self.static_image])  # Кадры для состояния обработки
         except KeyError:
             print("Ошибка: изображение Canning Cellar не найдено")
-            self.image = pygame.Surface((self.width, self.height))
-            self.image.fill((128, 0, 128))
+            self.static_image = pygame.Surface((self.width, self.height))
+            self.static_image.fill((128, 0, 128))
+            self.processing_frames = [self.static_image]
 
     def reload_images(self):
-        """Перезагружает изображение погреба."""
+        """Перезагружает изображение и анимации погреба."""
         try:
-            self.image = images.GAME_IMAGES.get("canning_cellar", images.GAME_IMAGES["mill"])
+            self.static_image = images.GAME_IMAGES.get("canning_cellar", images.GAME_IMAGES["mill"])
+            self.animations = images.GAME_IMAGES.get("canning_cellar_animations", {})
+            self.processing_frames = self.animations.get("processing", [self.static_image])
         except KeyError:
             print("Ошибка: изображение Canning Cellar не найдено")
-            self.image = pygame.Surface((self.width, self.height))
-            self.image.fill((128, 0, 128))
+            self.static_image = pygame.Surface((self.width, self.height))
+            self.static_image.fill((128, 0, 128))
+            self.processing_frames = [self.static_image]
 
     def start_processing(self, harvest, products):
         if not self.is_processing and harvest >= BUILDING_CONFIG["canning_cellar"]["consume"].get("harvest", 0) and products >= 0:
@@ -322,7 +354,17 @@ class CanningCellar(MapObject):
         return 0
 
     def draw(self, screen, camera_x):
-        screen.blit(self.image, (self.x - camera_x, self.y))
+        current_time = pygame.time.get_ticks()
+        if self.is_processing and self.processing_frames:
+            # Обновляем кадр анимации
+            if current_time - self.last_frame_time >= self.animation_speed * 1000:
+                self.frame = (self.frame + 1) % len(self.processing_frames)
+                self.last_frame_time = current_time
+            screen.blit(self.processing_frames[self.frame], (self.x - camera_x, self.y))
+        else:
+            screen.blit(self.static_image, (self.x - camera_x, self.y))
+
+        # Прогресс-бар
         if self.is_processing:
             progress = (pygame.time.get_ticks() - self.process_start_time) / self.process_duration
             bar_width = int(self.width * progress)

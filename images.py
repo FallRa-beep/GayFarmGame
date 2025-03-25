@@ -7,58 +7,27 @@ def load_game_images():
     """Загружает и масштабирует все изображения игры."""
     IMAGES = {}
 
-    def load_image(path, size, fallback_color, force_size=None):
+    def load_image(path, size=None, fallback_color=BLACK, force_size=None):
+        """Вспомогательная функция для загрузки изображения."""
         try:
             if not os.path.exists(path):
                 print(f"File not found: {path}")
                 raise FileNotFoundError(f"Image file {path} does not exist")
             image = pygame.image.load(path).convert_alpha()
             if force_size:
-                image = pygame.transform.scale(image, force_size)
-            else:
-                image = pygame.transform.scale(image, size)
-            return image
+                return pygame.transform.scale(image, force_size)
+            if size:
+                return pygame.transform.scale(image, size)
+            return image  # Загружаем в оригинальном размере, если size не указан
         except (pygame.error, FileNotFoundError) as e:
-            surface = pygame.Surface(size)
+            if force_size:
+                surface = pygame.Surface(force_size)
+            elif size:
+                surface = pygame.Surface(size)
+            else:
+                surface = pygame.Surface((64, 64))  # Размер заглушки по умолчанию
             surface.fill(fallback_color)
             return surface
-
-    # Универсальная загрузка анимаций из папки images/animation/
-    animation_dir = os.path.join("images", "animation")
-    if os.path.exists(animation_dir):
-        for object_type in os.listdir(animation_dir):
-            object_dir = os.path.join(animation_dir, object_type)
-            if os.path.isdir(object_dir):
-                # Создаём словарь для анимаций этого объекта
-                object_animations = {}
-                for filename in os.listdir(object_dir):
-                    if filename.endswith(".png"):
-                        parts = filename.rsplit("_", 1)
-                        if len(parts) == 2 and parts[1].replace(".png", "").isdigit():
-                            state_name = parts[0]  # Например, "processing" из "processing_1.png"
-                            frame_number = int(parts[1].replace(".png", ""))
-                        else:
-                            state_name = filename.replace(".png", "")
-                            frame_number = 1
-
-                        frame_path = os.path.join(object_dir, filename)
-                        # Размер по умолчанию 64x64, но можно настроить в будущем
-                        image = load_image(frame_path, (64, 64), BLACK)
-
-                        if state_name not in object_animations:
-                            object_animations[state_name] = []
-                        object_animations[state_name].append((frame_number, image))
-
-                # Сортируем кадры по номеру
-                for state in object_animations:
-                    object_animations[state].sort(key=lambda x: x[0])
-                    object_animations[state] = [frame[1] for frame in object_animations[state]]
-
-                # Сохраняем анимации в IMAGES под ключом <object_type>_animations
-                IMAGES[f"{object_type}_animations"] = object_animations
-                print(f"Loaded animations for {object_type}: {list(object_animations.keys())}")
-    else:
-        print(f"Папка {animation_dir} не найдена")
 
     # Загрузка изображений игрока (force_size не нужен, оставляем как есть)
     IMAGES["player_idle"] = load_image(os.path.join("images", "heroes", "player", "player_idle.png"), (64, 64), BROWN)
@@ -125,8 +94,90 @@ def load_game_images():
             os.path.join("images", "plants", f"{plant_name}_seed.png"), (32, 32), YELLOW
         )
 
+        # Новая динамическая загрузка для остальных категорий (map_objects, heroes)
+        def get_fallback_color(category, obj_type):
+            """Определяет цвет заглушки в зависимости от категории и типа объекта."""
+            if category == "map_objects":
+                if obj_type == "mill":
+                    return (160, 82, 45)
+                elif obj_type == "canning_cellar":
+                    return (128, 0, 128)
+                elif obj_type == "house":
+                    return BLACK
+                elif obj_type == "market_stall":
+                    return (139, 69, 19)
+                elif obj_type == "bed":
+                    return BROWN
+            elif category == "heroes":
+                return BROWN
+            return BLACK
 
+        base_dir = "images"
+        for category in os.listdir(base_dir):
+            # Пропускаем ui, plants и tiles, так как они уже загружены
+            if category in ["ui", "plants", "tiles"]:
+                continue
 
-    return IMAGES
+            category_path = os.path.join(base_dir, category)
+            if not os.path.isdir(category_path):
+                continue
 
-GAME_IMAGES = {}
+            for obj_type in os.listdir(category_path):
+                obj_path = os.path.join(category_path, obj_type)
+                if not os.path.isdir(obj_path):
+                    continue
+
+                # Определяем цвет заглушки
+                fallback_color = get_fallback_color(category, obj_type)
+
+                # Загружаем содержимое папки
+                static_image = None
+                states = {}  # Словарь для хранения анимаций и одиночных изображений
+                for filename in os.listdir(obj_path):
+                    if not filename.endswith(".png"):
+                        continue
+                    file_path = os.path.join(obj_path, filename)
+                    name = filename.replace(".png", "")
+
+                    # Разделяем имя файла на состояние и номер кадра (если есть)
+                    parts = name.rsplit("_", 1)
+                    if len(parts) == 2 and parts[1].isdigit():
+                        state_name = parts[0]
+                        frame_number = int(parts[1])
+                        if state_name not in states:
+                            states[state_name] = []
+                        states[state_name].append(
+                            (frame_number, load_image(file_path, size=None, fallback_color=fallback_color)))
+                    else:
+                        # Одиночное изображение (static или состояние без номера)
+                        states[name] = load_image(file_path, size=None, fallback_color=fallback_color)
+                        if name == "static":
+                            static_image = states[name]
+
+                # Сортируем анимации по номеру кадра
+                for state in states:
+                    if isinstance(states[state], list):
+                        states[state].sort(key=lambda x: x[0])
+                        states[state] = [frame[1] for frame in states[state]]
+
+                # Сохраняем статичное изображение
+                if "static" in states:
+                    IMAGES[obj_type] = states["static"]
+                    del states["static"]  # Удаляем из состояний, чтобы не дублировать
+                    print(f"Loaded static image for {obj_type}")
+
+                # Сохраняем состояния (анимации или одиночные изображения)
+                if states:
+                    if category == "map_objects" and obj_type == "bed":
+                        # Для грядок сохраняем dry, wet, ripe отдельно
+                        IMAGES["bed_dry"] = states.get("dry", load_image("", size=None, fallback_color=BROWN))
+                        IMAGES["bed_wet"] = states.get("wet", load_image("", size=None, fallback_color=(0, 0, 255)))
+                        IMAGES["bed_ripe"] = states.get("ripe", load_image("", size=None, fallback_color=YELLOW))
+                    else:
+                        # Для остальных объектов сохраняем состояния как анимации
+                        IMAGES[f"{obj_type}_animations"] = states
+                        print(f"Loaded states for {obj_type}: {list(states.keys())}")
+
+        return IMAGES
+
+    GAME_IMAGES = {}
